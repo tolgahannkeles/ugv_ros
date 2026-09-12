@@ -79,7 +79,7 @@
     #cameraStream {
       width: 100%;
       height: 100%;
-      object-fit: contain; /* Görüntüyü bozmadan alanı maksimum kaplar */
+      object-fit: contain;
       display: block;
     }
 
@@ -129,14 +129,14 @@
       overflow: hidden;
       z-index: 20;
       box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-      transition: width 0.2s, height 0.2s;
+      transition: border-color 0.2s;
     }
     .pip-map:hover {
       border-color: var(--accent-blue);
     }
     #mapView { width: 100%; height: 100%; }
 
-    /* Ücretsiz OSM Tile'ları için CSS Dark Filter (API Key İstemez) */
+    /* Ücretsiz OSM Tile'ları için CSS Dark Filter */
     .dark-tiles .leaflet-tile {
       filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
     }
@@ -271,12 +271,12 @@
         <div class="hud-crosshair"></div>
 
         <div style="display:flex; justify-content:space-between; align-items:flex-end;">
-          <div style="width: 290px;"></div> <!-- PiP Harita boşluğu -->
+          <div style="width: 290px;"></div>
           <div class="hud-box" id="hudCoords">LAT: --.---- | LON: --.----</div>
         </div>
       </div>
 
-      <!-- KÖŞEDE DURAN TACTICAL PiP HARİTA -->
+      <!-- PiP TAKTİK HARİTA -->
       <div class="pip-map">
         <div id="mapView" class="dark-tiles"></div>
       </div>
@@ -334,7 +334,7 @@
       <div class="card">
         <div class="card-title">
           <span>Sürüş Konsolu</span>
-          <span id="powerScaleLabel">75%</span>
+          <span id="powerScaleLabel">100%</span>
         </div>
         <div class="ctrl-wrap">
           <div id="stickContainer">
@@ -346,7 +346,7 @@
         </div>
         <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
           <span style="font-size:0.65rem; color:var(--text-dim)">PWR</span>
-          <input type="range" id="powerSlider" min="20" max="100" value="75" style="flex:1; accent-color:var(--accent-blue)">
+          <input type="range" id="powerSlider" min="20" max="100" value="100" style="flex:1; accent-color:var(--accent-blue)">
         </div>
       </div>
 
@@ -359,7 +359,7 @@
   </div>
 
   <script>
-    // Clock
+    // UTC Clock
     setInterval(() => {
       document.getElementById('utcClock').innerText = new Date().toISOString().substring(11, 19);
     }, 1000);
@@ -367,7 +367,7 @@
     const host = window.location.hostname || 'localhost';
     document.getElementById('cameraStream').src = `http://${host}:8080/stream?topic=/camera/image_raw`;
 
-    // %100 Ücretsiz OpenStreetMap Tile Sunucusu (API Key GEREKTİRMEZ!)
+    // Leaflet OpenStreetMap
     const map = L.map('mapView', { zoomControl: false }).setView([39.92077, 32.85411], 16);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -386,7 +386,7 @@
     const marker = L.marker([39.92077, 32.85411], { icon: ugvIcon }).addTo(map);
     const trailLine = L.polyline([], { color: '#0ea5e9', weight: 2, opacity: 0.8 }).addTo(map);
 
-    // ROS 2 Bağlantısı
+    // ROS 2 WebSocket Bağlantısı
     const ros = new ROSLIB.Ros({ url: `ws://${host}:9090` });
     const rosDot = document.getElementById('rosDot');
     const rosStatus = document.getElementById('rosStatus');
@@ -405,7 +405,7 @@
     const imuTopic = new ROSLIB.Topic({ ros: ros, name: '/imu/data_raw', messageType: 'sensor_msgs/msg/Imu' });
     const gpsTopic = new ROSLIB.Topic({ ros: ros, name: '/gps/fix', messageType: 'sensor_msgs/msg/NavSatFix' });
 
-    // IMU Dinleme
+    // IMU Dinleme ve Yönelim Hesaplama
     let currentYaw = 0.0;
     let lastImuTime = null;
 
@@ -433,7 +433,6 @@
       document.getElementById('valPitch').innerText = `${pitchDeg.toFixed(1)}°`;
       document.getElementById('valYaw').innerText = `${currentYaw.toFixed(1)}°`;
 
-      // Horizon ve Pin Rotasyonu
       const horizonBar = document.getElementById('horizonBar');
       const pitchOffset = Math.max(-25, Math.min(25, pitchDeg * 1.2));
       horizonBar.style.transform = `translateY(${pitchOffset}px) rotate(${-rollDeg}deg)`;
@@ -465,10 +464,14 @@
       }
     });
 
-    // Sürüş Dinamikleri (Tüm eksenlerde tavan hız: 0.6)
-    let maxLin = 0.6;   // İleri / Geri: max 0.6 m/s
-    let maxAng = 0.6;   // Sağa / Sola Dönüş (Yaw): max 0.6 rad/s
-    let powerScale = 0.75;
+    // Sürüş Kinematiği (0.6 m/s limitli tam sağ/sol nokta dönüşü)
+    const trackWidth = 0.22;
+    const slipFactor = 1.25;
+    const effectiveWidth = trackWidth * slipFactor; // 0.275m
+
+    let maxLin = 0.6; // m/s
+    let maxAng = (2 * maxLin) / effectiveWidth; // ~4.3636 rad/s
+    let powerScale = 1.0;
     let targetLin = 0.0;
     let targetAng = 0.0;
 
@@ -491,7 +494,7 @@
     }
     setInterval(sendTwist, 50);
 
-    // Joystick
+    // Joystick Mekaniği
     const stick = document.getElementById('stickContainer');
     const knob = document.getElementById('stickKnob');
     let isDragging = false;
@@ -522,7 +525,7 @@
       }
     });
 
-    // WASD
+    // Klavye Teleop (WASD)
     const keys = {};
     window.addEventListener('keydown', (e) => {
       if (['w', 'a', 's', 'd', ' '].includes(e.key.toLowerCase())) {

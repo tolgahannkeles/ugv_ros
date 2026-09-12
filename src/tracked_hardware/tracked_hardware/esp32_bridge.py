@@ -55,9 +55,20 @@ class ESP32Bridge(Node):
     def cmd_vel_cb(self, msg: Twist):
         vx = msg.linear.x
         wz = msg.angular.z
+
+        # Diferansiyel / Paletli Kinematik Hesabı
         v_left = vx - (wz * self.effective_width / 2.0)
         v_right = vx + (wz * self.effective_width / 2.0)
 
+        # HIZ TAVAN SINIRLAMASI (Maksimum 0.6 m/s Clamping / Scaling)
+        max_speed = 0.6
+        largest = max(abs(v_left), abs(v_right))
+        if largest > max_speed:
+            # Orantılı olarak düşür (robot rotasını bozmadan max 0.6 ile döner)
+            v_left = (v_left / largest) * max_speed
+            v_right = (v_right / largest) * max_speed
+
+        # Küçük endian float paketleme (<ff)
         payload = struct.pack('<ff', float(v_left), float(v_right))
         length = len(payload)
         crc = self.calc_crc(PKT_ID_CMD_VEL, length, payload)
