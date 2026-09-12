@@ -1,319 +1,558 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>İKA GÖREV KONTROL MERKEZİ (ROS 2)</title>
-<!-- roslibjs: ROS 2 WebSocket Kütüphanesi -->
-<script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
-<style>
-  :root {
-    --bg-dark: #0b0f17;
-    --card-bg: rgba(22, 30, 44, 0.85);
-    --border-color: #243247;
-    --accent-blue: #00b4d8;
-    --accent-green: #06d6a0;
-    --accent-red: #ef476f;
-    --text-primary: #e2e8f0;
-    --text-dim: #94a3b8;
-  }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>UGV Tactical Command Station</title>
+  
+  <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 15px;
-    background: radial-gradient(circle at 50% 20%, #162235 0%, var(--bg-dark) 80%);
-    color: var(--text-primary);
-    font-family: 'Segoe UI', monospace;
-    user-select: none;
-    min-height: 100vh;
-    display: flex; flex-direction: column; align-items: center;
-  }
+  <style>
+    :root {
+      --bg-base: #0a0d14;
+      --bg-panel: #111722;
+      --border-color: #1e293b;
+      --accent-blue: #3b82f6;
+      --accent-cyan: #06b6d4;
+      --text-main: #f8fafc;
+      --text-dim: #64748b;
+      --status-ok: #10b981;
+      --status-danger: #ef4444;
+      --mono-font: 'JetBrains Mono', Consolas, monospace;
+      --sans-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
 
-  header {
-    width: 100%; max-width: 1300px;
-    display: flex; justify-content: space-between; align-items: center;
-    border-bottom: 2px solid var(--border-color);
-    padding-bottom: 10px; margin-bottom: 15px;
-  }
-  .title-box { display: flex; align-items: baseline; gap: 10px; }
-  h1 { font-size: 1.3rem; margin: 0; letter-spacing: 2px; color: var(--accent-blue); text-transform: uppercase; }
-  .sys-badge { font-size: 0.75rem; background: #1e293b; color: var(--accent-green); padding: 3px 8px; border-radius: 4px; border: 1px solid var(--accent-green); }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--sans-font);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+    }
 
-  .dashboard-grid {
-    display: grid;
-    grid-template-columns: 1.6fr 1fr;
-    gap: 15px; width: 100%; max-width: 1300px;
-  }
-  @media (max-width: 950px) { .dashboard-grid { grid-template-columns: 1fr; } }
+    /* HEADER */
+    header {
+      height: 42px;
+      min-height: 42px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      font-size: 0.8rem;
+    }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; letter-spacing: 0.5px; }
+    .badge { font-family: var(--mono-font); font-size: 0.65rem; background: #1e293b; color: var(--accent-cyan); padding: 2px 6px; border-radius: 3px; }
+    .status-group { display: flex; gap: 16px; font-family: var(--mono-font); font-size: 0.75rem; align-items: center; }
+    .pill { display: flex; align-items: center; gap: 6px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-danger); }
+    .dot.active { background: var(--status-ok); box-shadow: 0 0 8px rgba(16, 185, 129, 0.6); }
 
-  .card {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px; padding: 15px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-    backdrop-filter: blur(8px);
-  }
+    /* ANA ÇALIŞMA ALANI */
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      height: calc(100vh - 42px);
+      min-height: 0;
+      position: relative;
+    }
 
-  .card-hdr {
-    font-size: 0.8rem; font-weight: 700; letter-spacing: 1.5px;
-    color: var(--accent-blue); margin-bottom: 12px;
-    display: flex; justify-content: space-between; align-items: center;
-    border-bottom: 1px solid var(--border-color); padding-bottom: 6px;
-    text-transform: uppercase;
-  }
+    /* SOL: ANA GÖRÜNTÜ ALANI */
+    .viewport-container {
+      position: relative;
+      background: #000;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+    }
 
-  .viewport-container {
-    position: relative; width: 100%; aspect-ratio: 16 / 9;
-    background: #000; border-radius: 6px; overflow: hidden;
-    border: 1px solid #334155; display: flex; align-items: center; justify-content: center;
-  }
-  #cameraStream { width: 100%; height: 100%; object-fit: cover; }
+    #cameraStream {
+      width: 100%;
+      height: 100%;
+      object-fit: contain; /* Görüntüyü bozmadan alanı maksimum kaplar */
+      display: block;
+    }
 
-  .hud-overlay { position: absolute; inset: 0; pointer-events: none; }
-  .hud-reticle {
-    position: absolute; top: 50%; left: 50%; width: 40px; height: 40px;
-    transform: translate(-50%, -50%); border: 1px solid rgba(0, 180, 216, 0.5); border-radius: 50%;
-  }
-  .hud-reticle::before { content: ''; position: absolute; top: 50%; left: -10px; width: 60px; height: 1px; background: rgba(0, 180, 216, 0.7); }
-  .hud-reticle::after { content: ''; position: absolute; top: -10px; left: 50%; width: 1px; height: 60px; background: rgba(0, 180, 216, 0.7); }
+    /* HUD KATMANI */
+    .hud-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 14px;
+      font-family: var(--mono-font);
+      font-size: 0.75rem;
+      z-index: 10;
+    }
+    .hud-box {
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(4px);
+      padding: 5px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+    .hud-crosshair {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 40px; height: 40px;
+      pointer-events: none;
+    }
+    .hud-crosshair::before, .hud-crosshair::after {
+      content: ''; position: absolute; background: rgba(59, 130, 246, 0.6);
+    }
+    .hud-crosshair::before { top: 50%; left: 0; right: 0; height: 1px; }
+    .hud-crosshair::after { left: 50%; top: 0; bottom: 0; width: 1px; }
 
-  .hud-tag {
-    position: absolute; font-size: 0.7rem; font-family: monospace;
-    color: var(--accent-green); background: rgba(0,0,0,0.6);
-    padding: 2px 6px; border-radius: 3px;
-  }
+    /* PICTURE-IN-PICTURE (PiP) TAKTİK HARİTA */
+    .pip-map {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      width: 280px;
+      height: 200px;
+      background: #0f172a;
+      border: 2px solid var(--border-color);
+      border-radius: 6px;
+      overflow: hidden;
+      z-index: 20;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+      transition: width 0.2s, height 0.2s;
+    }
+    .pip-map:hover {
+      border-color: var(--accent-blue);
+    }
+    #mapView { width: 100%; height: 100%; }
 
-  .telemetry-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center; margin-bottom: 15px; }
-  .telem-box { background: #0f172a; border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; }
-  .telem-label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; }
-  .telem-val { font-size: 1.2rem; font-weight: bold; color: var(--accent-green); margin-top: 4px; font-family: monospace; }
+    /* Ücretsiz OSM Tile'ları için CSS Dark Filter (API Key İstemez) */
+    .dark-tiles .leaflet-tile {
+      filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+    }
 
-  .ctrl-box { display: flex; justify-content: space-around; align-items: center; margin: 15px 0; touch-action: none; }
-  #stick {
-    width: 170px; height: 170px;
-    background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
-    border-radius: 50%; position: relative; border: 2px solid var(--border-color);
-    display: flex; align-items: center; justify-content: center;
-  }
-  #knob {
-    width: 55px; height: 55px; background: var(--accent-blue);
-    border-radius: 50%; position: absolute; box-shadow: 0 0 15px rgba(0,180,216,0.8);
-    pointer-events: none;
-  }
+    /* SAĞ PANEL */
+    .sidebar {
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px;
+      overflow-y: auto;
+    }
+    .card {
+      background: var(--bg-base);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 10px;
+    }
+    .card-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
 
-  .stop-btn {
-    width: 100%; height: 48px; background: var(--accent-red);
-    color: #fff; border: none; border-radius: 6px; font-weight: bold;
-    font-size: 1rem; cursor: pointer; letter-spacing: 1px;
-    box-shadow: 0 4px 15px rgba(239,71,111,0.4); margin-top: 10px;
-  }
-  .stop-btn:active { background: #b71c1c; transform: scale(0.99); }
-  .status { font-size: 0.8rem; color: var(--text-dim); margin-top: 10px; text-align: center; font-weight: 600; }
-</style>
+    /* ATTITUDE DISPLAY */
+    .attitude-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 4px 0;
+    }
+    .gyro-disc {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      border: 2px solid #334155;
+      position: relative;
+      overflow: hidden;
+      background: #0f172a;
+    }
+    .horizon-sky { position: absolute; width: 100%; height: 50%; top: 0; background: #0284c7; }
+    .horizon-ground { position: absolute; width: 100%; height: 50%; bottom: 0; background: #78350f; }
+    .horizon-bar {
+      position: absolute; top: 50%; left: -20%; width: 140%; height: 2px;
+      background: #f8fafc; transform-origin: center center;
+    }
+    .reticle {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 20px; height: 4px; border: 1px solid #facc15; border-top: none;
+    }
+
+    /* METRIC GRID */
+    .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .metric-box {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      padding: 6px 8px;
+    }
+    .metric-box.span-2 { grid-column: span 2; }
+    .m-lbl { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; }
+    .m-val { font-family: var(--mono-font); font-size: 1rem; font-weight: 600; color: var(--text-main); margin-top: 2px; }
+
+    /* JOYSTICK */
+    .ctrl-wrap { display: flex; flex-direction: column; align-items: center; padding: 6px 0; }
+    #stickContainer {
+      width: 120px; height: 120px; background: var(--bg-panel);
+      border: 1px solid var(--border-color); border-radius: 50%;
+      position: relative; touch-action: none;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #stickKnob {
+      width: 36px; height: 36px; background: var(--accent-blue);
+      border-radius: 50%; position: absolute; pointer-events: none;
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+    }
+
+    .btn-estop {
+      width: 100%; height: 38px;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid var(--status-danger);
+      color: var(--status-danger);
+      font-size: 0.8rem; font-weight: 700;
+      border-radius: 4px; cursor: pointer; text-transform: uppercase;
+      transition: all 0.15s;
+    }
+    .btn-estop:hover { background: var(--status-danger); color: #fff; }
+  </style>
 </head>
 <body>
 
-<header>
-  <div class="title-box">
-    <h1>İKA GCS (ROS 2)</h1>
-    <span class="sys-badge" id="rosBadge">ROS2: BAĞLANIYOR</span>
-  </div>
-  <div id="clock" style="font-family:monospace; color:var(--text-dim); font-size:0.85rem;">00:00:00 UTC</div>
-</header>
-
-<div class="dashboard-grid">
-  <!-- SOL: VİDEO YAYINI (web_video_server) -->
-  <div class="card">
-    <div class="card-hdr">
-      <span>FPV ROS Kamera Yayını (/camera/image_raw)</span>
-      <span id="camStatus" style="color:var(--accent-green);">STREAMING</span>
+  <header>
+    <div class="brand">
+      <span>UGV MISSION HUB</span>
+      <span class="badge">ROS 2 GCS</span>
     </div>
+    <div class="status-group">
+      <div class="pill">
+        <div class="dot" id="rosDot"></div>
+        <span id="rosStatus">DISCONNECTED</span>
+      </div>
+      <div class="pill">
+        <span style="color:var(--text-dim)">GPS:</span>
+        <span id="gpsStatus" style="color:var(--status-danger)">NO FIX</span>
+      </div>
+      <div class="pill">
+        <span style="color:var(--text-dim)">TIME:</span>
+        <span id="utcClock">00:00:00</span>
+      </div>
+    </div>
+  </header>
 
+  <div class="workspace">
+    
+    <!-- SOL: ANA KAMERA VE HUD -->
     <div class="viewport-container">
-      <!-- web_video_server 8080 portundan standart MJPEG basar -->
-      <img id="cameraStream" src="" alt="Kamera Akışı Bekleniyor..." onerror="camError()">
+      <img id="cameraStream" src="" alt="CAMERA FEED OFFLINE">
       
-      <div class="hud-overlay">
-        <div class="hud-reticle"></div>
-        <div class="hud-tag" style="top:10px; left:10px;">ROS2 TOPIC: /camera/image_raw</div>
-        <div class="hud-tag" style="bottom:10px; left:10px;" id="hudLinear">LIN: 0.00 m/s</div>
-        <div class="hud-tag" style="bottom:10px; right:10px;" id="hudAngular">ANG: 0.00 rad/s</div>
+      <div class="hud-layer">
+        <div style="display:flex; justify-content:space-between;">
+          <div class="hud-box">SRC: /camera/image_raw (BGR8)</div>
+          <div class="hud-box" id="hudSpeed">SPD: 0.00 m/s</div>
+        </div>
+        
+        <div class="hud-crosshair"></div>
+
+        <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+          <div style="width: 290px;"></div> <!-- PiP Harita boşluğu -->
+          <div class="hud-box" id="hudCoords">LAT: --.---- | LON: --.----</div>
+        </div>
       </div>
+
+      <!-- KÖŞEDE DURAN TACTICAL PiP HARİTA -->
+      <div class="pip-map">
+        <div id="mapView" class="dark-tiles"></div>
+      </div>
+    </div>
+
+    <!-- SAĞ PANEL: TELEMETRİ & KONTROL -->
+    <div class="sidebar">
+      
+      <!-- ATTITUDE / YÖNELİM -->
+      <div class="card">
+        <div class="card-title">
+          <span>Yönelim & Açı</span>
+          <span>MPU-6050</span>
+        </div>
+        <div class="attitude-wrap">
+          <div class="gyro-disc">
+            <div class="horizon-sky"></div>
+            <div class="horizon-ground"></div>
+            <div class="horizon-bar" id="horizonBar"></div>
+            <div class="reticle"></div>
+          </div>
+        </div>
+        <div class="metric-grid" style="margin-top:6px;">
+          <div class="metric-box">
+            <div class="m-lbl">Pitch</div>
+            <div class="m-val" id="valPitch">0.0°</div>
+          </div>
+          <div class="metric-box">
+            <div class="m-lbl">Roll</div>
+            <div class="m-val" id="valRoll">0.0°</div>
+          </div>
+          <div class="metric-box span-2">
+            <div class="m-lbl">Heading (Yaw)</div>
+            <div class="m-val" id="valYaw">0.0° N</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- İVME TELEMETRİSİ -->
+      <div class="card">
+        <div class="card-title">İvme Verileri</div>
+        <div class="metric-grid">
+          <div class="metric-box">
+            <div class="m-lbl">Acc X</div>
+            <div class="m-val" id="valAx">0.00 <span style="font-size:0.65rem;color:var(--text-dim)">m/s²</span></div>
+          </div>
+          <div class="metric-box">
+            <div class="m-lbl">Acc Z</div>
+            <div class="m-val" id="valAz">9.81 <span style="font-size:0.65rem;color:var(--text-dim)">m/s²</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SÜRÜŞ JOYSTICK -->
+      <div class="card">
+        <div class="card-title">
+          <span>Sürüş Konsolu</span>
+          <span id="powerScaleLabel">75%</span>
+        </div>
+        <div class="ctrl-wrap">
+          <div id="stickContainer">
+            <div id="stickKnob"></div>
+          </div>
+          <div style="font-size:0.65rem; color:var(--text-dim); margin-top:6px; font-family:var(--mono-font)">
+            WASD VEYA DOKUNMATİK
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+          <span style="font-size:0.65rem; color:var(--text-dim)">PWR</span>
+          <input type="range" id="powerSlider" min="20" max="100" value="75" style="flex:1; accent-color:var(--accent-blue)">
+        </div>
+      </div>
+
+      <!-- E-STOP -->
+      <div class="card" style="margin-top:auto;">
+        <button class="btn-estop" onclick="emergencyStop()">ACİL DURDURMA [SPACE]</button>
+      </div>
+
     </div>
   </div>
 
-  <!-- SAĞ: TELEMETRİ VE KONTROL -->
-  <div style="display:flex; flex-direction:column; gap:15px;">
-    <div class="card">
-      <div class="card-hdr">Sensör & Telemetri</div>
-      <div class="telemetry-grid">
-        <div class="telem-box">
-          <div class="telem-label">İvme Z (m/s²)</div>
-          <div class="telem-val" id="imuAz">0.00</div>
-        </div>
-        <div class="telem-box">
-          <div class="telem-label">Açısal Hız Z</div>
-          <div class="telem-val" id="imuGz">0.00</div>
-        </div>
-        <div class="telem-box">
-          <div class="telem-label">Hız Limiti</div>
-          <div class="telem-val" id="pVal">%80</div>
-        </div>
-      </div>
+  <script>
+    // Clock
+    setInterval(() => {
+      document.getElementById('utcClock').innerText = new Date().toISOString().substring(11, 19);
+    }, 1000);
 
-      <div style="text-align:center;">
-        <span style="font-size:0.75rem; color:var(--text-dim);">MAKSİMUM SÜRÜŞ GÜCÜ</span><br>
-        <input type="range" min="20" max="100" value="80" style="width:90%; accent-color:var(--accent-blue);" id="powerSlider">
-      </div>
-    </div>
+    const host = window.location.hostname || 'localhost';
+    document.getElementById('cameraStream').src = `http://${host}:8080/stream?topic=/camera/image_raw`;
 
-    <div class="card">
-      <div class="card-hdr">Joystick Sürüş Konsolu</div>
-      <div class="ctrl-box">
-        <div id="stick"><div id="knob"></div></div>
-      </div>
+    // %100 Ücretsiz OpenStreetMap Tile Sunucusu (API Key GEREKTİRMEZ!)
+    const map = L.map('mapView', { zoomControl: false }).setView([39.92077, 32.85411], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
 
-      <button class="stop-btn" onclick="emergencyStop()">ACİL DURDURMA (E-STOP)</button>
-      <div class="status" id="wsStat">ROSBRIDGE BAĞLANTISI BEKLENİYOR...</div>
-    </div>
-  </div>
-</div>
+    setTimeout(() => { map.invalidateSize(); }, 300);
 
-<script>
-// Saat
-setInterval(() => {
-  document.getElementById('clock').innerText = new Date().toTimeString().split(' ')[0] + " LOC";
-}, 1000);
+    // Robot İkonu ve Hareket Çizgisi
+    const ugvIcon = L.divIcon({
+      className: 'ugv-marker-wrap',
+      html: `<div id="ugvPin" style="width:16px;height:16px;background:#38bdf8;border:2px solid #fff;border-radius:3px;transform:rotate(0deg);box-shadow:0 0 8px #38bdf8;"></div>`,
+      iconSize: [16, 16],
+      iconAnchor: [8, 8]
+    });
+    const marker = L.marker([39.92077, 32.85411], { icon: ugvIcon }).addTo(map);
+    const trailLine = L.polyline([], { color: '#0ea5e9', weight: 2, opacity: 0.8 }).addTo(map);
 
-// Kamera Stream URL'sini dinamik ayarla (Aynı host, 8080 portu)
-const robotHost = window.location.hostname || "localhost";
-document.getElementById('cameraStream').src = `http://${robotHost}:8080/stream?topic=/camera/image_raw`;
+    // ROS 2 Bağlantısı
+    const ros = new ROSLIB.Ros({ url: `ws://${host}:9090` });
+    const rosDot = document.getElementById('rosDot');
+    const rosStatus = document.getElementById('rosStatus');
 
-function camError() {
-  document.getElementById('camStatus').innerText = "OFFLINE";
-  document.getElementById('camStatus').style.color = "var(--accent-red)";
-}
+    ros.on('connection', () => {
+      rosDot.classList.add('active');
+      rosStatus.innerText = 'ONLINE';
+    });
+    ros.on('close', () => {
+      rosDot.classList.remove('active');
+      rosStatus.innerText = 'OFFLINE';
+      setTimeout(() => ros.connect(`ws://${host}:9090`), 2000);
+    });
 
-// --- ROS 2 ROSLIBJS BAĞLANTISI ---
-const ros = new ROSLIB.Ros({
-  url: `ws://${robotHost}:9090`
-});
+    const cmdVelTopic = new ROSLIB.Topic({ ros: ros, name: '/cmd_vel', messageType: 'geometry_msgs/msg/Twist' });
+    const imuTopic = new ROSLIB.Topic({ ros: ros, name: '/imu/data_raw', messageType: 'sensor_msgs/msg/Imu' });
+    const gpsTopic = new ROSLIB.Topic({ ros: ros, name: '/gps/fix', messageType: 'sensor_msgs/msg/NavSatFix' });
 
-const rosBadge = document.getElementById('rosBadge');
-const wsStat = document.getElementById('wsStat');
+    // IMU Dinleme
+    let currentYaw = 0.0;
+    let lastImuTime = null;
 
-ros.on('connection', () => {
-  rosBadge.innerText = "ROS2: BAĞLANDI";
-  rosBadge.style.color = "var(--accent-green)";
-  wsStat.innerText = "SİSTEM ÇEVRİMİÇİ (/cmd_vel aktif)";
-  wsStat.style.color = "var(--accent-green)";
-});
+    imuTopic.subscribe((msg) => {
+      const ax = msg.linear_acceleration.x;
+      const ay = msg.linear_acceleration.y;
+      const az = msg.linear_acceleration.z;
+      const gz = msg.angular_velocity.z;
 
-ros.on('error', () => {
-  rosBadge.innerText = "ROS2: HATA";
-  rosBadge.style.color = "var(--accent-red)";
-  wsStat.innerText = "BAĞLANTI HATASI (9090 Portu)";
-  wsStat.style.color = "var(--accent-red)";
-});
+      document.getElementById('valAx').innerText = ax.toFixed(2);
+      document.getElementById('valAz').innerText = az.toFixed(2);
 
-ros.on('close', () => {
-  rosBadge.innerText = "ROS2: KOPTU";
-  rosBadge.style.color = "var(--accent-red)";
-  wsStat.innerText = "KOPTU! YENİDEN DENENİYOR...";
-  wsStat.style.color = "var(--accent-red)";
-  setTimeout(() => ros.connect(`ws://${robotHost}:9090`), 2000);
-});
+      const rollDeg = Math.atan2(ay, az) * (180 / Math.PI);
+      const pitchDeg = Math.atan2(-ax, Math.sqrt(ay * ay + az * az)) * (180 / Math.PI);
 
-// /cmd_vel Publisher
-const cmdVelTopic = new ROSLIB.Topic({
-  ros: ros,
-  name: '/cmd_vel',
-  messageType: 'geometry_msgs/msg/Twist'
-});
+      const now = performance.now();
+      if (lastImuTime) {
+        const dt = (now - lastImuTime) / 1000.0;
+        currentYaw += (gz * (180 / Math.PI)) * dt;
+        currentYaw = (currentYaw % 360 + 360) % 360;
+      }
+      lastImuTime = now;
 
-// /imu/data_raw Subscriber
-const imuTopic = new ROSLIB.Topic({
-  ros: ros,
-  name: '/imu/data_raw',
-  messageType: 'sensor_msgs/msg/Imu'
-});
+      document.getElementById('valRoll').innerText = `${rollDeg.toFixed(1)}°`;
+      document.getElementById('valPitch').innerText = `${pitchDeg.toFixed(1)}°`;
+      document.getElementById('valYaw').innerText = `${currentYaw.toFixed(1)}°`;
 
-imuTopic.subscribe((msg) => {
-  document.getElementById('imuAz').innerText = msg.linear_acceleration.z.toFixed(2);
-  document.getElementById('imuGz').innerText = msg.angular_velocity.z.toFixed(2);
-});
+      // Horizon ve Pin Rotasyonu
+      const horizonBar = document.getElementById('horizonBar');
+      const pitchOffset = Math.max(-25, Math.min(25, pitchDeg * 1.2));
+      horizonBar.style.transform = `translateY(${pitchOffset}px) rotate(${-rollDeg}deg)`;
 
-// Sürüş Değişkenleri
-let maxLinearSpeed = 0.5;   // m/s
-let maxAngularSpeed = 1.5;  // rad/s
-let powerScale = 0.8;
-let targetLinear = 0.0;
-let targetAngular = 0.0;
+      const pin = document.getElementById('ugvPin');
+      if (pin) pin.style.transform = `rotate(${currentYaw}deg)`;
+    });
 
-document.getElementById('powerSlider').addEventListener('input', (e) => {
-  powerScale = parseInt(e.target.value) / 100.0;
-  document.getElementById('pVal').innerText = `%${e.target.value}`;
-});
+    // GPS Dinleme
+    let firstFix = true;
+    gpsTopic.subscribe((msg) => {
+      const lat = msg.latitude;
+      const lon = msg.longitude;
 
-function publishTwist() {
-  if (!ros.isConnected) return;
+      if (msg.status.status >= 0) {
+        document.getElementById('gpsStatus').innerText = '3D FIX';
+        document.getElementById('gpsStatus').style.color = 'var(--status-ok)';
+      }
 
-  const twist = new ROSLIB.Message({
-    linear: { x: targetLinear * powerScale, y: 0.0, z: 0.0 },
-    angular: { x: 0.0, y: 0.0, z: targetAngular * powerScale }
-  });
-  cmdVelTopic.publish(twist);
+      document.getElementById('hudCoords').innerText = `LAT: ${lat.toFixed(5)} | LON: ${lon.toFixed(5)}`;
 
-  document.getElementById('hudLinear').innerText = `LIN: ${(targetLinear * powerScale).toFixed(2)} m/s`;
-  document.getElementById('hudAngular').innerText = `ANG: ${(targetAngular * powerScale).toFixed(2)} rad/s`;
-}
+      const pos = [lat, lon];
+      marker.setLatLng(pos);
+      trailLine.addLatLng(pos);
 
-// 20 Hz (50 ms'de bir) düzenli /cmd_vel yayını
-setInterval(publishTwist, 50);
+      if (firstFix) {
+        map.panTo(pos);
+        firstFix = false;
+      }
+    });
 
-// --- 2D JOYSTICK ---
-const stick = document.getElementById('stick');
-const knob = document.getElementById('knob');
-let dragging = false;
+    // Sürüş Dinamikleri (Tüm eksenlerde tavan hız: 0.6)
+    let maxLin = 0.6;   // İleri / Geri: max 0.6 m/s
+    let maxAng = 0.6;   // Sağa / Sola Dönüş (Yaw): max 0.6 rad/s
+    let powerScale = 0.75;
+    let targetLin = 0.0;
+    let targetAng = 0.0;
 
-function handleJoystick(clientX, clientY) {
-  const rect = stick.getBoundingClientRect();
-  const dx = clientX - (rect.left + rect.width / 2);
-  const dy = clientY - (rect.top + rect.height / 2);
-  const dist = Math.min(55, Math.hypot(dx, dy));
-  const angle = Math.atan2(dy, dx);
+    document.getElementById('powerSlider').addEventListener('input', (e) => {
+      powerScale = parseInt(e.target.value) / 100.0;
+      document.getElementById('powerScaleLabel').innerText = `${e.target.value}%`;
+    });
 
-  const kx = dist * Math.cos(angle);
-  const ky = dist * Math.sin(angle);
-  knob.style.transform = `translate(${kx}px, ${ky}px)`;
+    function sendTwist() {
+      if (!ros.isConnected) return;
+      const lin = targetLin * powerScale;
+      const ang = targetAng * powerScale;
 
-  // -1.0 ile +1.0 arası normalize et
-  const normX = kx / 55;
-  const normY = -ky / 55;
+      cmdVelTopic.publish(new ROSLIB.Message({
+        linear: { x: lin, y: 0.0, z: 0.0 },
+        angular: { x: 0.0, y: 0.0, z: ang }
+      }));
 
-  targetLinear = normY * maxLinearSpeed;
-  targetAngular = -normX * maxAngularSpeed; // Sağa çekince eksi Z açısı (saat yönü)
-}
+      document.getElementById('hudSpeed').innerText = `SPD: ${Math.abs(lin).toFixed(2)} m/s`;
+    }
+    setInterval(sendTwist, 50);
 
-stick.addEventListener('pointerdown', (e) => { dragging = true; handleJoystick(e.clientX, e.clientY); });
-window.addEventListener('pointermove', (e) => { if (dragging) handleJoystick(e.clientX, e.clientY); });
-window.addEventListener('pointerup', () => {
-  if (dragging) {
-    dragging = false;
-    knob.style.transform = "translate(0px, 0px)";
-    targetLinear = 0.0;
-    targetAngular = 0.0;
-    publishTwist();
-  }
-});
+    // Joystick
+    const stick = document.getElementById('stickContainer');
+    const knob = document.getElementById('stickKnob');
+    let isDragging = false;
 
-function emergencyStop() {
-  dragging = false;
-  knob.style.transform = "translate(0px, 0px)";
-  targetLinear = 0.0;
-  targetAngular = 0.0;
-  publishTwist();
-}
-</script>
+    function handleJoy(cx, cy) {
+      const rect = stick.getBoundingClientRect();
+      const dx = cx - (rect.left + rect.width / 2);
+      const dy = cy - (rect.top + rect.height / 2);
+      const dist = Math.min(42, Math.hypot(dx, dy));
+      const angle = Math.atan2(dy, dx);
+
+      const kx = dist * Math.cos(angle);
+      const ky = dist * Math.sin(angle);
+      knob.style.transform = `translate(${kx}px, ${ky}px)`;
+
+      targetAng = -(kx / 42) * maxAng;
+      targetLin = -(ky / 42) * maxLin;
+    }
+
+    stick.addEventListener('pointerdown', (e) => { isDragging = true; handleJoy(e.clientX, e.clientY); });
+    window.addEventListener('pointermove', (e) => { if (isDragging) handleJoy(e.clientX, e.clientY); });
+    window.addEventListener('pointerup', () => {
+      if (isDragging) {
+        isDragging = false;
+        knob.style.transform = 'translate(0, 0)';
+        targetLin = 0; targetAng = 0;
+        sendTwist();
+      }
+    });
+
+    // WASD
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+      if (['w', 'a', 's', 'd', ' '].includes(e.key.toLowerCase())) {
+        keys[e.key.toLowerCase()] = true;
+        if (e.key === ' ') { emergencyStop(); return; }
+        updateKeys();
+      }
+    });
+    window.addEventListener('keyup', (e) => {
+      if (['w', 'a', 's', 'd'].includes(e.key.toLowerCase())) {
+        keys[e.key.toLowerCase()] = false;
+        updateKeys();
+      }
+    });
+
+    function updateKeys() {
+      let l = 0, a = 0;
+      if (keys['w']) l += maxLin;
+      if (keys['s']) l -= maxLin;
+      if (keys['a']) a += maxAng;
+      if (keys['d']) a -= maxAng;
+      targetLin = l; targetAng = a;
+    }
+
+    function emergencyStop() {
+      isDragging = false;
+      targetLin = 0; targetAng = 0;
+      knob.style.transform = 'translate(0, 0)';
+      sendTwist();
+    }
+  </script>
 </body>
 </html>

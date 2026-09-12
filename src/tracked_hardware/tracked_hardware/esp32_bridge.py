@@ -2,7 +2,7 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
-from sensor_msgs.msg import Imu
+from sensor_msgs.msg import Imu, NavSatFix, NavSatStatus
 import serial
 import struct
 import threading
@@ -11,27 +11,25 @@ FRAME_HEADER1  = 0xAA
 FRAME_HEADER2  = 0x55
 PKT_ID_CMD_VEL = 0x01
 PKT_ID_IMU     = 0x10
+PKT_ID_GPS     = 0x11  # ESP32 GPS Paket ID
 
 class ESP32Bridge(Node):
     def __init__(self):
         super().__init__('esp32_bridge')
 
-        # Dışarıdan YAML ile ezilebilir dinamik parametreler
         self.declare_parameter('port', '/dev/ttyAMA0')
         self.declare_parameter('baudrate', 115200)
-        self.declare_parameter('track_width', 0.22)   # İki palet arası mesafe (metre)
-        self.declare_parameter('slip_factor', 1.25)   # Paletli dönüş kayma payı
+        self.declare_parameter('track_width', 0.22)
+        self.declare_parameter('slip_factor', 1.25)
         self.declare_parameter('imu_frame_id', 'imu_link')
+        self.declare_parameter('gps_frame_id', 'gps_link')
 
         port = self.get_parameter('port').value
         baud = self.get_parameter('baudrate').value
-        self.track_width = self.get_parameter('track_width').value
-        self.slip_factor = self.get_parameter('slip_factor').value
+        self.effective_width = self.get_parameter('track_width').value * self.get_parameter('slip_factor').value
         self.imu_frame_id = self.get_parameter('imu_frame_id').value
+        self.gps_frame_id = self.get_parameter('gps_frame_id').value
 
-        self.effective_width = self.track_width * self.slip_factor
-
-        # Seri Port Başlatma
         try:
             self.ser = serial.Serial(port, baud, timeout=0.1)
             self.get_logger().info(f"ESP32 UART acildi: {port} @ {baud}")
@@ -42,8 +40,8 @@ class ESP32Bridge(Node):
         # ROS 2 Arayüzleri
         self.sub_cmd_vel = self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_cb, 10)
         self.pub_imu = self.create_publisher(Imu, '/imu/data_raw', 10)
+        self.pub_gps = self.create_publisher(NavSatFix, '/gps/fix', 10)
 
-        # Arka plan okuma iş parçacığı
         self.running = True
         self.rx_thread = threading.Thread(target=self.rx_loop, daemon=True)
         self.rx_thread.start()
@@ -57,8 +55,6 @@ class ESP32Bridge(Node):
     def cmd_vel_cb(self, msg: Twist):
         vx = msg.linear.x
         wz = msg.angular.z
-
-        # Diferansiyel / Paletli Kinematik
         v_left = vx - (wz * self.effective_width / 2.0)
         v_right = vx + (wz * self.effective_width / 2.0)
 
@@ -74,8 +70,7 @@ class ESP32Bridge(Node):
 
     def rx_loop(self):
         state = 'H1'
-        pkt_id = 0
-        pkt_len = 0
+        pkt_id, pkt_len = 0, 0
         payload = bytearray()
 
         while self.running and rclpy.ok():
@@ -108,23 +103,37 @@ class ESP32Bridge(Node):
                 state = 'H1'
 
     def process_packet(self, pkt_id, payload):
+        stamp = self.get_clock().now().to_msg()
+
+        # IMU (24 Bayt: 6x float32)
         if pkt_id == PKT_ID_IMU and len(payload) == 24:
             ax, ay, az, gx, gy, gz = struct.unpack('<ffffff', payload)
 
             msg = Imu()
-            msg.header.stamp = self.get_clock().now().to_msg()
+            msg.header.stamp = stamp
             msg.header.frame_id = self.imu_frame_id
-
             msg.linear_acceleration.x = ax
             msg.linear_acceleration.y = ay
             msg.linear_acceleration.z = az
-
             msg.angular_velocity.x = gx
             msg.angular_velocity.y = gy
             msg.angular_velocity.z = gz
-
             msg.orientation_covariance[0] = -1.0
             self.pub_imu.publish(msg)
+
+        # GPS (17 Bayt: double lat, double lon, uint8 fix)
+        elif pkt_id == PKT_ID_GPS and len(payload) == 17:
+            lat, lon, fix = struct.unpack('<ddB', payload)
+
+            gps_msg = NavSatFix()
+            gps_msg.header.stamp = stamp
+            gps_msg.header.frame_id = self.gps_frame_id
+            gps_msg.status.status = NavSatStatus.STATUS_FIX if fix > 0 else NavSatStatus.STATUS_NO_FIX
+            gps_msg.status.service = NavSatStatus.SERVICE_GPS
+            gps_msg.latitude = lat
+            gps_msg.longitude = lon
+            gps_msg.altitude = 0.0
+            self.pub_gps.publish(gps_msg)
 
     def destroy_node(self):
         self.running = False
