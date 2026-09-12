@@ -1,0 +1,22 @@
+# Colcon derleme ve çalışma çıktıları (Kesinlikle git'e girmemeli)
+build/
+install/
+log/
+*.log
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Editör ve IDE ayarları
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# Ortam değişkenleri
+.env
