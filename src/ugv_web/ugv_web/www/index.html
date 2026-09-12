@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>İKA GÖREV KONTROL MERKEZİ (ROS 2)</title>
+<!-- roslibjs: ROS 2 WebSocket Kütüphanesi -->
+<script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+<style>
+  :root {
+    --bg-dark: #0b0f17;
+    --card-bg: rgba(22, 30, 44, 0.85);
+    --border-color: #243247;
+    --accent-blue: #00b4d8;
+    --accent-green: #06d6a0;
+    --accent-red: #ef476f;
+    --text-primary: #e2e8f0;
+    --text-dim: #94a3b8;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 15px;
+    background: radial-gradient(circle at 50% 20%, #162235 0%, var(--bg-dark) 80%);
+    color: var(--text-primary);
+    font-family: 'Segoe UI', monospace;
+    user-select: none;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+  }
+
+  header {
+    width: 100%; max-width: 1300px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px; margin-bottom: 15px;
+  }
+  .title-box { display: flex; align-items: baseline; gap: 10px; }
+  h1 { font-size: 1.3rem; margin: 0; letter-spacing: 2px; color: var(--accent-blue); text-transform: uppercase; }
+  .sys-badge { font-size: 0.75rem; background: #1e293b; color: var(--accent-green); padding: 3px 8px; border-radius: 4px; border: 1px solid var(--accent-green); }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 15px; width: 100%; max-width: 1300px;
+  }
+  @media (max-width: 950px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px; padding: 15px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    backdrop-filter: blur(8px);
+  }
+
+  .card-hdr {
+    font-size: 0.8rem; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--accent-blue); margin-bottom: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border-color); padding-bottom: 6px;
+    text-transform: uppercase;
+  }
+
+  .viewport-container {
+    position: relative; width: 100%; aspect-ratio: 16 / 9;
+    background: #000; border-radius: 6px; overflow: hidden;
+    border: 1px solid #334155; display: flex; align-items: center; justify-content: center;
+  }
+  #cameraStream { width: 100%; height: 100%; object-fit: cover; }
+
+  .hud-overlay { position: absolute; inset: 0; pointer-events: none; }
+  .hud-reticle {
+    position: absolute; top: 50%; left: 50%; width: 40px; height: 40px;
+    transform: translate(-50%, -50%); border: 1px solid rgba(0, 180, 216, 0.5); border-radius: 50%;
+  }
+  .hud-reticle::before { content: ''; position: absolute; top: 50%; left: -10px; width: 60px; height: 1px; background: rgba(0, 180, 216, 0.7); }
+  .hud-reticle::after { content: ''; position: absolute; top: -10px; left: 50%; width: 1px; height: 60px; background: rgba(0, 180, 216, 0.7); }
+
+  .hud-tag {
+    position: absolute; font-size: 0.7rem; font-family: monospace;
+    color: var(--accent-green); background: rgba(0,0,0,0.6);
+    padding: 2px 6px; border-radius: 3px;
+  }
+
+  .telemetry-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center; margin-bottom: 15px; }
+  .telem-box { background: #0f172a; border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; }
+  .telem-label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; }
+  .telem-val { font-size: 1.2rem; font-weight: bold; color: var(--accent-green); margin-top: 4px; font-family: monospace; }
+
+  .ctrl-box { display: flex; justify-content: space-around; align-items: center; margin: 15px 0; touch-action: none; }
+  #stick {
+    width: 170px; height: 170px;
+    background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
+    border-radius: 50%; position: relative; border: 2px solid var(--border-color);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #knob {
+    width: 55px; height: 55px; background: var(--accent-blue);
+    border-radius: 50%; position: absolute; box-shadow: 0 0 15px rgba(0,180,216,0.8);
+    pointer-events: none;
+  }
+
+  .stop-btn {
+    width: 100%; height: 48px; background: var(--accent-red);
+    color: #fff; border: none; border-radius: 6px; font-weight: bold;
+    font-size: 1rem; cursor: pointer; letter-spacing: 1px;
+    box-shadow: 0 4px 15px rgba(239,71,111,0.4); margin-top: 10px;
+  }
+  .stop-btn:active { background: #b71c1c; transform: scale(0.99); }
+  .status { font-size: 0.8rem; color: var(--text-dim); margin-top: 10px; text-align: center; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title-box">
+    <h1>İKA GCS (ROS 2)</h1>
+    <span class="sys-badge" id="rosBadge">ROS2: BAĞLANIYOR</span>
+  </div>
+  <div id="clock" style="font-family:monospace; color:var(--text-dim); font-size:0.85rem;">00:00:00 UTC</div>
+</header>
+
+<div class="dashboard-grid">
+  <!-- SOL: VİDEO YAYINI (web_video_server) -->
+  <div class="card">
+    <div class="card-hdr">
+      <span>FPV ROS Kamera Yayını (/camera/image_raw)</span>
+      <span id="camStatus" style="color:var(--accent-green);">STREAMING</span>
+    </div>
+
+    <div class="viewport-container">
+      <!-- web_video_server 8080 portundan standart MJPEG basar -->
+      <img id="cameraStream" src="" alt="Kamera Akışı Bekleniyor..." onerror="camError()">
+      
+      <div class="hud-overlay">
+        <div class="hud-reticle"></div>
+        <div class="hud-tag" style="top:10px; left:10px;">ROS2 TOPIC: /camera/image_raw</div>
+        <div class="hud-tag" style="bottom:10px; left:10px;" id="hudLinear">LIN: 0.00 m/s</div>
+        <div class="hud-tag" style="bottom:10px; right:10px;" id="hudAngular">ANG: 0.00 rad/s</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SAĞ: TELEMETRİ VE KONTROL -->
+  <div style="display:flex; flex-direction:column; gap:15px;">
+    <div class="card">
+      <div class="card-hdr">Sensör & Telemetri</div>
+      <div class="telemetry-grid">
+        <div class="telem-box">
+          <div class="telem-label">İvme Z (m/s²)</div>
+          <div class="telem-val" id="imuAz">0.00</div>
+        </div>
+        <div class="telem-box">
+          <div class="telem-label">Açısal Hız Z</div>
+          <div class="telem-val" id="imuGz">0.00</div>
+        </div>
+        <div class="telem-box">
+          <div class="telem-label">Hız Limiti</div>
+          <div class="telem-val" id="pVal">%80</div>
+        </div>
+      </div>
+
+      <div style="text-align:center;">
+        <span style="font-size:0.75rem; color:var(--text-dim);">MAKSİMUM SÜRÜŞ GÜCÜ</span><br>
+        <input type="range" min="20" max="100" value="80" style="width:90%; accent-color:var(--accent-blue);" id="powerSlider">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr">Joystick Sürüş Konsolu</div>
+      <div class="ctrl-box">
+        <div id="stick"><div id="knob"></div></div>
+      </div>
+
+      <button class="stop-btn" onclick="emergencyStop()">ACİL DURDURMA (E-STOP)</button>
+      <div class="status" id="wsStat">ROSBRIDGE BAĞLANTISI BEKLENİYOR...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Saat
+setInterval(() => {
+  document.getElementById('clock').innerText = new Date().toTimeString().split(' ')[0] + " LOC";
+}, 1000);
+
+// Kamera Stream URL'sini dinamik ayarla (Aynı host, 8080 portu)
+const robotHost = window.location.hostname || "localhost";
+document.getElementById('cameraStream').src = `http://${robotHost}:8080/stream?topic=/camera/image_raw`;
+
+function camError() {
+  document.getElementById('camStatus').innerText = "OFFLINE";
+  document.getElementById('camStatus').style.color = "var(--accent-red)";
+}
+
+// --- ROS 2 ROSLIBJS BAĞLANTISI ---
+const ros = new ROSLIB.Ros({
+  url: `ws://${robotHost}:9090`
+});
+
+const rosBadge = document.getElementById('rosBadge');
+const wsStat = document.getElementById('wsStat');
+
+ros.on('connection', () => {
+  rosBadge.innerText = "ROS2: BAĞLANDI";
+  rosBadge.style.color = "var(--accent-green)";
+  wsStat.innerText = "SİSTEM ÇEVRİMİÇİ (/cmd_vel aktif)";
+  wsStat.style.color = "var(--accent-green)";
+});
+
+ros.on('error', () => {
+  rosBadge.innerText = "ROS2: HATA";
+  rosBadge.style.color = "var(--accent-red)";
+  wsStat.innerText = "BAĞLANTI HATASI (9090 Portu)";
+  wsStat.style.color = "var(--accent-red)";
+});
+
+ros.on('close', () => {
+  rosBadge.innerText = "ROS2: KOPTU";
+  rosBadge.style.color = "var(--accent-red)";
+  wsStat.innerText = "KOPTU! YENİDEN DENENİYOR...";
+  wsStat.style.color = "var(--accent-red)";
+  setTimeout(() => ros.connect(`ws://${robotHost}:9090`), 2000);
+});
+
+// /cmd_vel Publisher
+const cmdVelTopic = new ROSLIB.Topic({
+  ros: ros,
+  name: '/cmd_vel',
+  messageType: 'geometry_msgs/msg/Twist'
+});
+
+// /imu/data_raw Subscriber
+const imuTopic = new ROSLIB.Topic({
+  ros: ros,
+  name: '/imu/data_raw',
+  messageType: 'sensor_msgs/msg/Imu'
+});
+
+imuTopic.subscribe((msg) => {
+  document.getElementById('imuAz').innerText = msg.linear_acceleration.z.toFixed(2);
+  document.getElementById('imuGz').innerText = msg.angular_velocity.z.toFixed(2);
+});
+
+// Sürüş Değişkenleri
+let maxLinearSpeed = 0.5;   // m/s
+let maxAngularSpeed = 1.5;  // rad/s
+let powerScale = 0.8;
+let targetLinear = 0.0;
+let targetAngular = 0.0;
+
+document.getElementById('powerSlider').addEventListener('input', (e) => {
+  powerScale = parseInt(e.target.value) / 100.0;
+  document.getElementById('pVal').innerText = `%${e.target.value}`;
+});
+
+function publishTwist() {
+  if (!ros.isConnected) return;
+
+  const twist = new ROSLIB.Message({
+    linear: { x: targetLinear * powerScale, y: 0.0, z: 0.0 },
+    angular: { x: 0.0, y: 0.0, z: targetAngular * powerScale }
+  });
+  cmdVelTopic.publish(twist);
+
+  document.getElementById('hudLinear').innerText = `LIN: ${(targetLinear * powerScale).toFixed(2)} m/s`;
+  document.getElementById('hudAngular').innerText = `ANG: ${(targetAngular * powerScale).toFixed(2)} rad/s`;
+}
+
+// 20 Hz (50 ms'de bir) düzenli /cmd_vel yayını
+setInterval(publishTwist, 50);
+
+// --- 2D JOYSTICK ---
+const stick = document.getElementById('stick');
+const knob = document.getElementById('knob');
+let dragging = false;
+
+function handleJoystick(clientX, clientY) {
+  const rect = stick.getBoundingClientRect();
+  const dx = clientX - (rect.left + rect.width / 2);
+  const dy = clientY - (rect.top + rect.height / 2);
+  const dist = Math.min(55, Math.hypot(dx, dy));
+  const angle = Math.atan2(dy, dx);
+
+  const kx = dist * Math.cos(angle);
+  const ky = dist * Math.sin(angle);
+  knob.style.transform = `translate(${kx}px, ${ky}px)`;
+
+  // -1.0 ile +1.0 arası normalize et
+  const normX = kx / 55;
+  const normY = -ky / 55;
+
+  targetLinear = normY * maxLinearSpeed;
+  targetAngular = -normX * maxAngularSpeed; // Sağa çekince eksi Z açısı (saat yönü)
+}
+
+stick.addEventListener('pointerdown', (e) => { dragging = true; handleJoystick(e.clientX, e.clientY); });
+window.addEventListener('pointermove', (e) => { if (dragging) handleJoystick(e.clientX, e.clientY); });
+window.addEventListener('pointerup', () => {
+  if (dragging) {
+    dragging = false;
+    knob.style.transform = "translate(0px, 0px)";
+    targetLinear = 0.0;
+    targetAngular = 0.0;
+    publishTwist();
+  }
+});
+
+function emergencyStop() {
+  dragging = false;
+  knob.style.transform = "translate(0px, 0px)";
+  targetLinear = 0.0;
+  targetAngular = 0.0;
+  publishTwist();
+}
+</script>
+</body>
+</html>
