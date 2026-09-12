@@ -7,7 +7,7 @@ def generate_launch_description():
     pkg_bringup = get_package_share_directory('tracked_bringup')
     param_file = os.path.join(pkg_bringup, 'config', 'robot_params.yaml')
 
-    # 1. ESP32 Donanım Köprüsü (UART)
+   # 1. ESP32 Köprüsü
     esp32_bridge_node = Node(
         package='tracked_hardware',
         executable='esp32_bridge',
@@ -16,20 +16,25 @@ def generate_launch_description():
         parameters=[param_file]
     )
 
-    # 2. Kamera Düğümü (ROS 2 Standart Kamera Yayını)
+    # 2. Raspberry Pi 5 CSI Kamera Düğümü (camera_ros)
     camera_node = Node(
-        package='v4l2_camera',
-        executable='v4l2_camera_node',
-        name='v4l2_camera',
+        package='camera_ros',
+        executable='camera_node',
+        name='camera',
         output='screen',
         parameters=[{
-            'video_device': '/dev/video0',
-            'image_size': [640, 480],
-            'time_per_frame': [1, 30]
-        }]
+            'width': 640,
+            'height': 480,
+            'format': 'BGR888',   # Web video server ve OpenCV için standart
+            'framerate': 30.0
+        }],
+        remappings=[
+            # camera_ros varsayılan olarak /camera/image_raw yayınlar
+            ('/camera/image_raw', '/camera/image_raw')
+        ]
     )
 
-    # 3. Web Video Server (ROS Image -> HTTP MJPEG çevirici, Port 8080)
+    # 3. Web Video Server (HTTP MJPEG Stream, Port 8080)
     web_video_node = Node(
         package='web_video_server',
         executable='web_video_server',
@@ -38,7 +43,7 @@ def generate_launch_description():
         parameters=[{'port': 8080}]
     )
 
-    # 4. Rosbridge WebSocket (Tarayıcı -> ROS 2 Topic Köprüsü, Port 9090)
+    # 4. Rosbridge WebSocket (Port 9090)
     rosbridge_node = Node(
         package='rosbridge_server',
         executable='rosbridge_websocket',
@@ -47,7 +52,7 @@ def generate_launch_description():
         parameters=[{'port': 9090}]
     )
 
-    # 5. Web UI Sunucusu (HTML Arayüzü, Port 8000)
+    # 5. Web UI Sunucusu (Port 8000)
     web_server_node = Node(
         package='ugv_web',
         executable='web_server',
