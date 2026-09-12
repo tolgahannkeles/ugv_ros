@@ -1,0 +1,7 @@
+esp32_bridge:
+  ros__parameters:
+    port: "/dev/ttyAMA0"
+    baudrate: 115200
+    track_width: 0.22
+    slip_factor: 1.25
+    imu_frame_id: "imu_link"
