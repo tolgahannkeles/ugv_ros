@@ -6,6 +6,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
     pkg_bringup = get_package_share_directory('tracked_bringup')
     param_file = os.path.join(pkg_bringup, 'config', 'robot_params.yaml')
+    twist_mux_file = os.path.join(pkg_bringup, 'config', 'twist_mux.yaml')
 
     # ROBOTICS / HARDWARE: ESP32 bidirectional bridge (UART <-> ROS 2 topics)
     esp32_bridge_node = Node(
@@ -16,6 +17,16 @@ def generate_launch_description():
         respawn=True,
         respawn_delay=2.0,
         parameters=[param_file]
+    )
+
+    # CONTROL / MULTIPLEXER: Priority-based velocity arbiter (Teleop > Autonomous > Lock)
+    twist_mux_node = Node(
+        package='twist_mux',
+        executable='twist_mux',
+        name='twist_mux',
+        output='screen',
+        parameters=[twist_mux_file],
+        remappings=[('cmd_vel_out', '/cmd_vel')]
     )
 
     # HARDWARE / CSI: Libcamera driver for Raspberry Pi 5 RP1-CFE architecture
@@ -62,6 +73,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         esp32_bridge_node,
+        twist_mux_node,
         camera_node,
         web_video_node,
         rosbridge_node,
