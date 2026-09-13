@@ -18,7 +18,7 @@ def generate_launch_description():
         respawn_delay=2.0,
         parameters=[param_file]
     )
-
+    """
     # CONTROL / MULTIPLEXER: Priority-based velocity arbiter (Teleop > Autonomous > Lock)
     twist_mux_node = Node(
         package='twist_mux',
@@ -29,6 +29,7 @@ def generate_launch_description():
         remappings=[('cmd_vel_out', '/cmd_vel')]
     )
 
+    
     # 4. INTELLIGENCE: ONNX Monocular Depth Estimation (MiDaS v2.1 Small)
     depth_node = Node(
         package='tracked_intelligence',
@@ -54,7 +55,7 @@ def generate_launch_description():
             'turn_speed': 1.20
         }]
     )
-
+    """
     # HARDWARE / CSI: Libcamera driver for Raspberry Pi 5 RP1-CFE architecture
     camera_node = Node(
         package='camera_ros',
