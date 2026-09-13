@@ -18,7 +18,7 @@ def generate_launch_description():
         respawn_delay=2.0,
         parameters=[param_file]
     )
-    """
+    
     # CONTROL / MULTIPLEXER: Priority-based velocity arbiter (Teleop > Autonomous > Lock)
     twist_mux_node = Node(
         package='twist_mux',
@@ -29,7 +29,7 @@ def generate_launch_description():
         remappings=[('cmd_vel_out', '/cmd_vel')]
     )
 
-    
+    """
     # 4. INTELLIGENCE: ONNX Monocular Depth Estimation (MiDaS v2.1 Small)
     depth_node = Node(
         package='tracked_intelligence',
@@ -100,7 +100,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         esp32_bridge_node,
-        #twist_mux_node,
+        twist_mux_node,
         #depth_node,
         #avoidance_node,
         camera_node,
