@@ -100,9 +100,9 @@ def generate_launch_description():
 
     return LaunchDescription([
         esp32_bridge_node,
-        twist_mux_node,
-        depth_node,
-        avoidance_node,
+        #twist_mux_node,
+        #depth_node,
+        #avoidance_node,
         camera_node,
         web_video_node,
         rosbridge_node,
