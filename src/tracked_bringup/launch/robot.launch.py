@@ -50,8 +50,8 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'safe_threshold': 0.60,
-            'forward_speed': 0.25,
-            'turn_speed': 0.70
+            'forward_speed': 0.45,
+            'turn_speed': 1.20
         }]
     )
 

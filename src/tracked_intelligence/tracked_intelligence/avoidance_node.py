@@ -11,8 +11,8 @@ class AvoidanceNode(Node):
         super().__init__('avoidance_node')
 
         self.declare_parameter('safe_threshold', 0.60)
-        self.declare_parameter('forward_speed', 0.25)
-        self.declare_parameter('turn_speed', 0.70)
+        self.declare_parameter('forward_speed', 0.45)
+        self.declare_parameter('turn_speed', 1.20)
 
         self.safe_threshold = self.get_parameter('safe_threshold').value
         self.forward_speed = self.get_parameter('forward_speed').value
