@@ -7,34 +7,33 @@ def generate_launch_description():
     pkg_bringup = get_package_share_directory('tracked_bringup')
     param_file = os.path.join(pkg_bringup, 'config', 'robot_params.yaml')
 
-   # 1. ESP32 Köprüsü
+    # ROBOTICS / HARDWARE: ESP32 bidirectional bridge (UART <-> ROS 2 topics)
     esp32_bridge_node = Node(
         package='tracked_hardware',
         executable='esp32_bridge',
         name='esp32_bridge',
         output='screen',
+        respawn=True,
+        respawn_delay=2.0,
         parameters=[param_file]
     )
 
-    # 2. Raspberry Pi 5 CSI Kamera Düğümü (camera_ros)
+    # HARDWARE / CSI: Libcamera driver for Raspberry Pi 5 RP1-CFE architecture
     camera_node = Node(
         package='camera_ros',
         executable='camera_node',
         name='camera',
         output='screen',
         parameters=[{
-            'width': 640,
-            'height': 480,
-            'format': 'BGR888',   # Web video server ve OpenCV için standart
+            'camera': 0,
+            'width': 960,       # 16:9 oranı tam FOV sağlar
+            'height': 540,
+            'format': 'BGR888',
             'framerate': 30.0
-        }],
-        remappings=[
-            # camera_ros varsayılan olarak /camera/image_raw yayınlar
-            ('/camera/image_raw', '/camera/image_raw')
-        ]
+        }]
     )
 
-    # 3. Web Video Server (HTTP MJPEG Stream, Port 8080)
+    # WEB / STREAMING: Converts ROS image topic to browser-compatible MJPEG over HTTP
     web_video_node = Node(
         package='web_video_server',
         executable='web_video_server',
@@ -43,7 +42,7 @@ def generate_launch_description():
         parameters=[{'port': 8080}]
     )
 
-    # 4. Rosbridge WebSocket (Port 9090)
+    # WEB / TELEOP: JSON WebSocket bridge for roslibjs (topics/services/actions)
     rosbridge_node = Node(
         package='rosbridge_server',
         executable='rosbridge_websocket',
@@ -52,7 +51,7 @@ def generate_launch_description():
         parameters=[{'port': 9090}]
     )
 
-    # 5. Web UI Sunucusu (Port 8000)
+    # WEB / HOSTING: Serves static GCS frontend assets (HTML/JS/Leaflet)
     web_server_node = Node(
         package='ugv_web',
         executable='web_server',
