@@ -56,7 +56,7 @@
     .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-danger); }
     .dot.active { background: var(--status-ok); box-shadow: 0 0 8px rgba(16, 185, 129, 0.6); }
 
-    /* ANA ÇALIŞMA ALANI */
+    /* WORKSPACE */
     .workspace {
       flex: 1;
       display: grid;
@@ -66,7 +66,7 @@
       position: relative;
     }
 
-    /* SOL: ANA GÖRÜNTÜ ALANI */
+    /* SOL: KAMERA */
     .viewport-container {
       position: relative;
       background: #000;
@@ -84,7 +84,6 @@
       display: block;
     }
 
-    /* HUD KATMANI */
     .hud-layer {
       position: absolute;
       inset: 0;
@@ -117,7 +116,7 @@
     .hud-crosshair::before { top: 50%; left: 0; right: 0; height: 1px; }
     .hud-crosshair::after { left: 50%; top: 0; bottom: 0; width: 1px; }
 
-    /* PICTURE-IN-PICTURE (PiP) TAKTİK HARİTA */
+    /* TAKTİK HARİTA */
     .pip-map {
       position: absolute;
       bottom: 16px;
@@ -130,14 +129,8 @@
       overflow: hidden;
       z-index: 20;
       box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-      transition: border-color 0.2s;
-    }
-    .pip-map:hover {
-      border-color: var(--accent-blue);
     }
     #mapView { width: 100%; height: 100%; }
-
-    /* Ücretsiz OSM Tile'ları için CSS Dark Filter */
     .dark-tiles .leaflet-tile {
       filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
     }
@@ -169,21 +162,11 @@
       justify-content: space-between;
     }
 
-    /* ATTITUDE DISPLAY */
-    .attitude-wrap {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 4px 0;
-    }
+    /* ATTITUDE */
+    .attitude-wrap { display: flex; justify-content: center; align-items: center; padding: 4px 0; }
     .gyro-disc {
-      width: 90px;
-      height: 90px;
-      border-radius: 50%;
-      border: 2px solid #334155;
-      position: relative;
-      overflow: hidden;
-      background: #0f172a;
+      width: 90px; height: 90px; border-radius: 50%; border: 2px solid #334155;
+      position: relative; overflow: hidden; background: #0f172a;
     }
     .horizon-sky { position: absolute; width: 100%; height: 50%; top: 0; background: #0284c7; }
     .horizon-ground { position: absolute; width: 100%; height: 50%; bottom: 0; background: #78350f; }
@@ -196,13 +179,10 @@
       width: 20px; height: 4px; border: 1px solid #facc15; border-top: none;
     }
 
-    /* METRIC GRID */
     .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     .metric-box {
-      background: var(--bg-panel);
-      border: 1px solid var(--border-color);
-      border-radius: 3px;
-      padding: 6px 8px;
+      background: var(--bg-panel); border: 1px solid var(--border-color);
+      border-radius: 3px; padding: 6px 8px;
     }
     .metric-box.span-2 { grid-column: span 2; }
     .m-lbl { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; }
@@ -224,12 +204,9 @@
 
     .btn-estop {
       width: 100%; height: 38px;
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid var(--status-danger);
-      color: var(--status-danger);
-      font-size: 0.8rem; font-weight: 700;
+      background: rgba(239, 68, 68, 0.15); border: 1px solid var(--status-danger);
+      color: var(--status-danger); font-size: 0.8rem; font-weight: 700;
       border-radius: 4px; cursor: pointer; text-transform: uppercase;
-      transition: all 0.15s;
     }
     .btn-estop:hover { background: var(--status-danger); color: #fff; }
   </style>
@@ -248,7 +225,7 @@
       </div>
       <div class="pill">
         <span style="color:var(--text-dim)">MODE:</span>
-        <span id="driveModeBadge" style="color:var(--status-ok)">AUTO IDLE</span>
+        <span id="driveModeBadge" style="color:var(--status-ok)">AUTO</span>
       </div>
       <div class="pill">
         <span style="color:var(--text-dim)">GPS:</span>
@@ -262,35 +239,27 @@
   </header>
 
   <div class="workspace">
-    
-    <!-- SOL: ANA KAMERA VE HUD -->
     <div class="viewport-container">
       <img id="cameraStream" src="" alt="CAMERA FEED OFFLINE">
       
       <div class="hud-layer">
         <div style="display:flex; justify-content:space-between;">
-          <div class="hud-box">SRC: /camera/image_raw (16:9 FOV)</div>
+          <div class="hud-box">SRC: /camera/image_raw</div>
           <div class="hud-box" id="hudSpeed">SPD: 0.00 m/s</div>
         </div>
-        
         <div class="hud-crosshair"></div>
-
         <div style="display:flex; justify-content:space-between; align-items:flex-end;">
           <div style="width: 290px;"></div>
           <div class="hud-box" id="hudCoords">LAT: --.---- | LON: --.----</div>
         </div>
       </div>
 
-      <!-- PiP TAKTİK HARİTA -->
       <div class="pip-map">
         <div id="mapView" class="dark-tiles"></div>
       </div>
     </div>
 
-    <!-- SAĞ PANEL: TELEMETRİ & KONTROL -->
     <div class="sidebar">
-      
-      <!-- ATTITUDE / YÖNELİM -->
       <div class="card">
         <div class="card-title">
           <span>Yönelim & Açı</span>
@@ -320,7 +289,6 @@
         </div>
       </div>
 
-      <!-- İVME TELEMETRİSİ -->
       <div class="card">
         <div class="card-title">İvme Verileri</div>
         <div class="metric-grid">
@@ -335,7 +303,6 @@
         </div>
       </div>
 
-      <!-- SÜRÜŞ JOYSTICK -->
       <div class="card">
         <div class="card-title">
           <span>Sürüş Konsolu</span>
@@ -355,16 +322,13 @@
         </div>
       </div>
 
-      <!-- E-STOP -->
       <div class="card" style="margin-top:auto;">
         <button class="btn-estop" onclick="emergencyStop()">ACİL DURDURMA [SPACE]</button>
       </div>
-
     </div>
   </div>
 
   <script>
-    // UTC Saat
     setInterval(() => {
       document.getElementById('utcClock').innerText = new Date().toISOString().substring(11, 19);
     }, 1000);
@@ -372,60 +336,41 @@
     const host = window.location.hostname || 'localhost';
     document.getElementById('cameraStream').src = `http://${host}:8080/stream?topic=/camera/image_raw&quality=85&width=1280&height=720`;
 
-    // Leaflet OpenStreetMap
     const map = L.map('mapView', { zoomControl: false }).setView([39.92077, 32.85411], 16);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
-
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
     setTimeout(() => { map.invalidateSize(); }, 300);
 
-    // Robot İkonu ve Hareket Çizgisi
     const ugvIcon = L.divIcon({
       className: 'ugv-marker-wrap',
-      html: `<div id="ugvPin" style="width:16px;height:16px;background:#38bdf8;border:2px solid #fff;border-radius:3px;transform:rotate(0deg);box-shadow:0 0 8px #38bdf8;"></div>`,
+      html: `<div id="ugvPin" style="width:16px;height:16px;background:#38bdf8;border:2px solid #fff;border-radius:3px;box-shadow:0 0 8px #38bdf8;"></div>`,
       iconSize: [16, 16],
       iconAnchor: [8, 8]
     });
     const marker = L.marker([39.92077, 32.85411], { icon: ugvIcon }).addTo(map);
-    const trailLine = L.polyline([], { color: '#0ea5e9', weight: 2, opacity: 0.8 }).addTo(map);
+    const trailLine = L.polyline([], { color: '#0ea5e9', weight: 2 }).addTo(map);
 
-    // ROS 2 WebSocket Bağlantısı
+    // ROS 2 Bağlantısı
     const ros = new ROSLIB.Ros({ url: `ws://${host}:9090` });
     const rosDot = document.getElementById('rosDot');
     const rosStatus = document.getElementById('rosStatus');
     const driveModeBadge = document.getElementById('driveModeBadge');
 
-    ros.on('connection', () => {
-      rosDot.classList.add('active');
-      rosStatus.innerText = 'ONLINE';
-    });
-    ros.on('close', () => {
-      rosDot.classList.remove('active');
-      rosStatus.innerText = 'OFFLINE';
-      setTimeout(() => ros.connect(`ws://${host}:9090`), 2000);
-    });
+    ros.on('connection', () => { rosDot.classList.add('active'); rosStatus.innerText = 'ONLINE'; });
+    ros.on('close', () => { rosDot.classList.remove('active'); rosStatus.innerText = 'OFFLINE'; setTimeout(() => ros.connect(`ws://${host}:9090`), 2000); });
 
-    // twist_mux MIMARISI: /cmd_vel_teleop TOPIC'INE YAYIN YAPILIR
+    // STANDART geometry_msgs/Twist (TwistStamped DEĞİL!)
     const cmdVelTeleopTopic = new ROSLIB.Topic({ 
       ros: ros, 
       name: '/cmd_vel_teleop', 
-      messageType: 'geometry_msgs/msg/TwistStamped' 
+      messageType: 'geometry_msgs/Twist' 
     });
-    const imuTopic = new ROSLIB.Topic({ ros: ros, name: '/imu/data_raw', messageType: 'sensor_msgs/msg/Imu' });
-    const gpsTopic = new ROSLIB.Topic({ ros: ros, name: '/gps/fix', messageType: 'sensor_msgs/msg/NavSatFix' });
+    const imuTopic = new ROSLIB.Topic({ ros: ros, name: '/imu/data_raw', messageType: 'sensor_msgs/Imu' });
+    const gpsTopic = new ROSLIB.Topic({ ros: ros, name: '/gps/fix', messageType: 'sensor_msgs/NavSatFix' });
 
-    // IMU Dinleme ve Yönelim Hesaplama
-    let currentYaw = 0.0;
-    let lastImuTime = null;
-
+    // IMU
+    let currentYaw = 0.0, lastImuTime = null;
     imuTopic.subscribe((msg) => {
-      const ax = msg.linear_acceleration.x;
-      const ay = msg.linear_acceleration.y;
-      const az = msg.linear_acceleration.z;
-      const gz = msg.angular_velocity.z;
-
+      const ax = msg.linear_acceleration.x, ay = msg.linear_acceleration.y, az = msg.linear_acceleration.z, gz = msg.angular_velocity.z;
       document.getElementById('valAx').innerText = ax.toFixed(2);
       document.getElementById('valAz').innerText = az.toFixed(2);
 
@@ -434,9 +379,7 @@
 
       const now = performance.now();
       if (lastImuTime) {
-        const dt = (now - lastImuTime) / 1000.0;
-        currentYaw += (gz * (180 / Math.PI)) * dt;
-        currentYaw = (currentYaw % 360 + 360) % 360;
+        currentYaw = (currentYaw + (gz * (180 / Math.PI)) * ((now - lastImuTime) / 1000.0) % 360 + 360) % 360;
       }
       lastImuTime = now;
 
@@ -444,49 +387,30 @@
       document.getElementById('valPitch').innerText = `${pitchDeg.toFixed(1)}°`;
       document.getElementById('valYaw').innerText = `${currentYaw.toFixed(1)}°`;
 
-      const horizonBar = document.getElementById('horizonBar');
       const pitchOffset = Math.max(-25, Math.min(25, pitchDeg * 1.2));
-      horizonBar.style.transform = `translateY(${pitchOffset}px) rotate(${-rollDeg}deg)`;
-
+      document.getElementById('horizonBar').style.transform = `translateY(${pitchOffset}px) rotate(${-rollDeg}deg)`;
       const pin = document.getElementById('ugvPin');
       if (pin) pin.style.transform = `rotate(${currentYaw}deg)`;
     });
 
-    // GPS Dinleme
+    // GPS
     let firstFix = true;
     gpsTopic.subscribe((msg) => {
-      const lat = msg.latitude;
-      const lon = msg.longitude;
-
       if (msg.status.status >= 0) {
         document.getElementById('gpsStatus').innerText = '3D FIX';
         document.getElementById('gpsStatus').style.color = 'var(--status-ok)';
       }
-
-      document.getElementById('hudCoords').innerText = `LAT: ${lat.toFixed(5)} | LON: ${lon.toFixed(5)}`;
-
-      const pos = [lat, lon];
+      document.getElementById('hudCoords').innerText = `LAT: ${msg.latitude.toFixed(5)} | LON: ${msg.longitude.toFixed(5)}`;
+      const pos = [msg.latitude, msg.longitude];
       marker.setLatLng(pos);
       trailLine.addLatLng(pos);
-
-      if (firstFix) {
-        map.panTo(pos);
-        firstFix = false;
-      }
+      if (firstFix) { map.panTo(pos); firstFix = false; }
     });
 
-    // Sürüş Kinematiği (0.6 m/s limitli)
-    const trackWidth = 0.22;
-    const slipFactor = 1.25;
-    const effectiveWidth = trackWidth * slipFactor; // 0.275m
-
-    let maxLin = 0.6; // m/s
-    let maxAng = (2 * maxLin) / effectiveWidth; // ~4.3636 rad/s
-    let powerScale = 1.0;
-    let targetLin = 0.0;
-    let targetAng = 0.0;
-
-    // STATE CONTROL: twist_mux'ı kilitlememek için aktif sürüş bayrağı
+    // Sürüş
+    const effectiveWidth = 0.22 * 1.25;
+    let maxLin = 0.6, maxAng = (2 * maxLin) / effectiveWidth, powerScale = 1.0;
+    let targetLin = 0.0, targetAng = 0.0;
     let isActivelyDriving = false;
 
     document.getElementById('powerSlider').addEventListener('input', (e) => {
@@ -501,45 +425,29 @@
       const ang = targetAng * powerScale;
       const isZero = (Math.abs(lin) < 0.001 && Math.abs(ang) < 0.001);
 
-      // KONTROL MANTIĞI:
-      // Eğer kullanıcı girdi vermiyorsa ve araç zaten durdurulduysa sus (topic'e hiçbir şey basma)!
       if (isZero) {
-        if (!isActivelyDriving) {
-          return; // twist_mux 0.5s sonra timeout olur ve otonom zeka devreye girer
-        }
-        // Kullanıcı yeni bıraktı -> Sadece 1 kez durma komutu bas ve sustur
+        if (!isActivelyDriving) return; // Zaten durmuş, topic'i meşgul etme, otonoma bırak
         isActivelyDriving = false;
-        driveModeBadge.innerText = 'AUTO IDLE';
+        driveModeBadge.innerText = 'AUTO';
         driveModeBadge.style.color = 'var(--status-ok)';
       } else {
         isActivelyDriving = true;
-        driveModeBadge.innerText = 'MANUAL OVERRIDE';
+        driveModeBadge.innerText = 'MANUAL';
         driveModeBadge.style.color = 'var(--status-warn)';
       }
 
-      const twistMsg = new ROSLIB.Message({
-        header: {
-          stamp: {
-            sec: Math.floor(Date.now() / 1000),
-            nanosec: (Date.now() % 1000) * 1000000
-          },
-          frame_id: 'base_link'
-        },
-        twist: {
-          linear: { x: lin, y: 0.0, z: 0.0 },
-          angular: { x: 0.0, y: 0.0, z: ang }
-        }
-      });
-
-      cmdVelTeleopTopic.publish(twistMsg);
+      // DOĞRUDAN SAF TWIST MESAJI
+      cmdVelTeleopTopic.publish(new ROSLIB.Message({
+        linear: { x: lin, y: 0.0, z: 0.0 },
+        angular: { x: 0.0, y: 0.0, z: ang }
+      }));
 
       document.getElementById('hudSpeed').innerText = `SPD: ${Math.abs(lin).toFixed(2)} m/s`;
     }
 
-    // Döngü çalışır ama sadece hareket varken veya tam durma anında veri basar
     setInterval(sendTwist, 50);
 
-    // Joystick Mekaniği
+    // Joystick
     const stick = document.getElementById('stickContainer');
     const knob = document.getElementById('stickKnob');
     let isDragging = false;
@@ -551,32 +459,23 @@
       const dist = Math.min(42, Math.hypot(dx, dy));
       const angle = Math.atan2(dy, dx);
 
-      const kx = dist * Math.cos(angle);
-      const ky = dist * Math.sin(angle);
-      knob.style.transform = `translate(${kx}px, ${ky}px)`;
-
-      targetAng = -(kx / 42) * maxAng;
-      targetLin = -(ky / 42) * maxLin;
+      knob.style.transform = `translate(${dist * Math.cos(angle)}px, ${dist * Math.sin(angle)}px)`;
+      targetAng = -(dist * Math.cos(angle) / 42) * maxAng;
+      targetLin = -(dist * Math.sin(angle) / 42) * maxLin;
     }
 
-    stick.addEventListener('pointerdown', (e) => { 
-      isDragging = true; 
-      handleJoy(e.clientX, e.clientY); 
-    });
-    window.addEventListener('pointermove', (e) => { 
-      if (isDragging) handleJoy(e.clientX, e.clientY); 
-    });
+    stick.addEventListener('pointerdown', (e) => { isDragging = true; handleJoy(e.clientX, e.clientY); });
+    window.addEventListener('pointermove', (e) => { if (isDragging) handleJoy(e.clientX, e.clientY); });
     window.addEventListener('pointerup', () => {
       if (isDragging) {
         isDragging = false;
         knob.style.transform = 'translate(0, 0)';
-        targetLin = 0.0; 
-        targetAng = 0.0;
-        sendTwist(); // Son durma komutunu gönderir
+        targetLin = 0.0; targetAng = 0.0;
+        sendTwist();
       }
     });
 
-    // Klavye Teleop (WASD)
+    // WASD Klavye
     const keys = {};
     window.addEventListener('keydown', (e) => {
       const k = e.key.toLowerCase();
@@ -600,14 +499,12 @@
       if (keys['s']) l -= maxLin;
       if (keys['a']) a += maxAng;
       if (keys['d']) a -= maxAng;
-      targetLin = l; 
-      targetAng = a;
+      targetLin = l; targetAng = a;
     }
 
     function emergencyStop() {
       isDragging = false;
-      targetLin = 0.0; 
-      targetAng = 0.0;
+      targetLin = 0.0; targetAng = 0.0;
       keys['w'] = false; keys['a'] = false; keys['s'] = false; keys['d'] = false;
       knob.style.transform = 'translate(0, 0)';
       sendTwist();

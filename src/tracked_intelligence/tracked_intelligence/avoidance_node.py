@@ -2,7 +2,7 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import TwistStamped  # Twist yerine TwistStamped
+from geometry_msgs.msg import Twist
 from cv_bridge import CvBridge
 import numpy as np
 
@@ -23,10 +23,8 @@ class AvoidanceNode(Node):
         self.sub_depth = self.create_subscription(
             Image, '/depth/image_raw', self.depth_callback, 1)
         
-        # TwistStamped yayını
-        self.pub_cmd = self.create_publisher(TwistStamped, '/cmd_vel_auto', 10)
-
-        self.get_logger().info("AvoidanceNode: TwistStamped formatında aktif.")
+        self.pub_cmd = self.create_publisher(Twist, '/cmd_vel_auto', 10)
+        self.get_logger().info("AvoidanceNode: Standart Twist formatında aktif.")
 
     def depth_callback(self, msg: Image):
         try:
@@ -50,25 +48,22 @@ class AvoidanceNode(Node):
         center_score = float(np.percentile(center_zone, 85)) / 255.0
         right_score = float(np.percentile(right_zone, 85)) / 255.0
 
-        # TwistStamped mesaj hazırlığı
-        cmd = TwistStamped()
-        cmd.header.stamp = self.get_clock().now().to_msg()
-        cmd.header.frame_id = 'base_link'
+        cmd = Twist()
 
         if center_score > self.safe_threshold:
-            cmd.twist.linear.x = 0.0
+            cmd.linear.x = 0.0
             if left_score < right_score:
-                cmd.twist.angular.z = self.turn_speed
+                cmd.angular.z = self.turn_speed
             else:
-                cmd.twist.angular.z = -self.turn_speed
+                cmd.angular.z = -self.turn_speed
         else:
-            cmd.twist.linear.x = self.forward_speed
+            cmd.linear.x = self.forward_speed
             if left_score > self.safe_threshold * 0.8:
-                cmd.twist.angular.z = -self.turn_speed * 0.5
+                cmd.angular.z = -self.turn_speed * 0.5
             elif right_score > self.safe_threshold * 0.8:
-                cmd.twist.angular.z = self.turn_speed * 0.5
+                cmd.angular.z = self.turn_speed * 0.5
             else:
-                cmd.twist.angular.z = 0.0
+                cmd.angular.z = 0.0
 
         self.pub_cmd.publish(cmd)
 
@@ -80,9 +75,7 @@ def main(args=None):
     except KeyboardInterrupt:
         pass
     finally:
-        stop_cmd = TwistStamped()
-        stop_cmd.header.stamp = node.get_clock().now().to_msg()
-        stop_cmd.header.frame_id = 'base_link'
+        stop_cmd = Twist()
         node.pub_cmd.publish(stop_cmd)
         node.destroy_node()
         rclpy.shutdown()
