@@ -26,10 +26,10 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'camera': 0,
-            'width': 960,       # 16:9 oranı tam FOV sağlar
-            'height': 540,
+            'width': 640,
+            'height': 480,
             'format': 'BGR888',
-            'framerate': 30.0
+            'framerate': 60.0,
         }]
     )
 
