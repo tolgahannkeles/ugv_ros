@@ -29,6 +29,32 @@ def generate_launch_description():
         remappings=[('cmd_vel_out', '/cmd_vel')]
     )
 
+    # 4. INTELLIGENCE: ONNX Monocular Depth Estimation (MiDaS v2.1 Small)
+    depth_node = Node(
+        package='tracked_intelligence',
+        executable='depth_node',
+        name='depth_node',
+        output='screen',
+        parameters=[{
+            'input_width': 256,
+            'input_height': 256,
+            'skip_frames': 1
+        }]
+    )
+
+    # 5. INTELLIGENCE: Sektörel Engelden Kaçınma (/cmd_vel_auto basar)
+    avoidance_node = Node(
+        package='tracked_intelligence',
+        executable='avoidance_node',
+        name='avoidance_node',
+        output='screen',
+        parameters=[{
+            'safe_threshold': 0.60,
+            'forward_speed': 0.25,
+            'turn_speed': 0.70
+        }]
+    )
+
     # HARDWARE / CSI: Libcamera driver for Raspberry Pi 5 RP1-CFE architecture
     camera_node = Node(
         package='camera_ros',
@@ -74,6 +100,8 @@ def generate_launch_description():
     return LaunchDescription([
         esp32_bridge_node,
         twist_mux_node,
+        depth_node,
+        avoidance_node,
         camera_node,
         web_video_node,
         rosbridge_node,

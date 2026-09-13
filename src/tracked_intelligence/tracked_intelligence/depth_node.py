@@ -13,10 +13,9 @@ class DepthNode(Node):
     def __init__(self):
         super().__init__('depth_node')
 
-        # PARAMETERS: Model input resolution and frame skipping for CPU efficiency
         self.declare_parameter('input_width', 256)
         self.declare_parameter('input_height', 256)
-        self.declare_parameter('skip_frames', 1)  # Process every 2nd frame to save CPU
+        self.declare_parameter('skip_frames', 1)
 
         self.in_w = self.get_parameter('input_width').value
         self.in_h = self.get_parameter('input_height').value

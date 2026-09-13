@@ -29,6 +29,7 @@ setup(
     entry_points={
         'console_scripts': [
             'depth_node = tracked_intelligence.depth_node:main',
+            'avoidance_node = tracked_intelligence.avoidance_node:main',
         ],
     },
 )
