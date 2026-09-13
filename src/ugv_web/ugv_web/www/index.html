@@ -19,6 +19,7 @@
       --text-main: #f8fafc;
       --text-dim: #64748b;
       --status-ok: #10b981;
+      --status-warn: #f59e0b;
       --status-danger: #ef4444;
       --mono-font: 'JetBrains Mono', Consolas, monospace;
       --sans-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -246,6 +247,10 @@
         <span id="rosStatus">DISCONNECTED</span>
       </div>
       <div class="pill">
+        <span style="color:var(--text-dim)">MODE:</span>
+        <span id="driveModeBadge" style="color:var(--status-ok)">AUTO IDLE</span>
+      </div>
+      <div class="pill">
         <span style="color:var(--text-dim)">GPS:</span>
         <span id="gpsStatus" style="color:var(--status-danger)">NO FIX</span>
       </div>
@@ -264,7 +269,7 @@
       
       <div class="hud-layer">
         <div style="display:flex; justify-content:space-between;">
-          <div class="hud-box">SRC: /camera/image_raw (BGR8)</div>
+          <div class="hud-box">SRC: /camera/image_raw (16:9 FOV)</div>
           <div class="hud-box" id="hudSpeed">SPD: 0.00 m/s</div>
         </div>
         
@@ -359,13 +364,13 @@
   </div>
 
   <script>
-    // UTC Clock
+    // UTC Saat
     setInterval(() => {
       document.getElementById('utcClock').innerText = new Date().toISOString().substring(11, 19);
     }, 1000);
 
     const host = window.location.hostname || 'localhost';
-    document.getElementById('cameraStream').src = `http://${host}:8080/stream?topic=/camera/image_raw`;
+    document.getElementById('cameraStream').src = `http://${host}:8080/stream?topic=/camera/image_raw&quality=85&width=1280&height=720`;
 
     // Leaflet OpenStreetMap
     const map = L.map('mapView', { zoomControl: false }).setView([39.92077, 32.85411], 16);
@@ -390,6 +395,7 @@
     const ros = new ROSLIB.Ros({ url: `ws://${host}:9090` });
     const rosDot = document.getElementById('rosDot');
     const rosStatus = document.getElementById('rosStatus');
+    const driveModeBadge = document.getElementById('driveModeBadge');
 
     ros.on('connection', () => {
       rosDot.classList.add('active');
@@ -401,7 +407,12 @@
       setTimeout(() => ros.connect(`ws://${host}:9090`), 2000);
     });
 
-    const cmdVelTopic = new ROSLIB.Topic({ ros: ros, name: '/cmd_vel', messageType: 'geometry_msgs/msg/Twist' });
+    // twist_mux MIMARISI: /cmd_vel_teleop TOPIC'INE YAYIN YAPILIR
+    const cmdVelTeleopTopic = new ROSLIB.Topic({ 
+      ros: ros, 
+      name: '/cmd_vel_teleop', 
+      messageType: 'geometry_msgs/msg/TwistStamped' 
+    });
     const imuTopic = new ROSLIB.Topic({ ros: ros, name: '/imu/data_raw', messageType: 'sensor_msgs/msg/Imu' });
     const gpsTopic = new ROSLIB.Topic({ ros: ros, name: '/gps/fix', messageType: 'sensor_msgs/msg/NavSatFix' });
 
@@ -464,7 +475,7 @@
       }
     });
 
-    // Sürüş Kinematiği (0.6 m/s limitli tam sağ/sol nokta dönüşü)
+    // Sürüş Kinematiği (0.6 m/s limitli)
     const trackWidth = 0.22;
     const slipFactor = 1.25;
     const effectiveWidth = trackWidth * slipFactor; // 0.275m
@@ -475,6 +486,9 @@
     let targetLin = 0.0;
     let targetAng = 0.0;
 
+    // STATE CONTROL: twist_mux'ı kilitlememek için aktif sürüş bayrağı
+    let isActivelyDriving = false;
+
     document.getElementById('powerSlider').addEventListener('input', (e) => {
       powerScale = parseInt(e.target.value) / 100.0;
       document.getElementById('powerScaleLabel').innerText = `${e.target.value}%`;
@@ -482,16 +496,47 @@
 
     function sendTwist() {
       if (!ros.isConnected) return;
+
       const lin = targetLin * powerScale;
       const ang = targetAng * powerScale;
+      const isZero = (Math.abs(lin) < 0.001 && Math.abs(ang) < 0.001);
 
-      cmdVelTopic.publish(new ROSLIB.Message({
-        linear: { x: lin, y: 0.0, z: 0.0 },
-        angular: { x: 0.0, y: 0.0, z: ang }
-      }));
+      // KONTROL MANTIĞI:
+      // Eğer kullanıcı girdi vermiyorsa ve araç zaten durdurulduysa sus (topic'e hiçbir şey basma)!
+      if (isZero) {
+        if (!isActivelyDriving) {
+          return; // twist_mux 0.5s sonra timeout olur ve otonom zeka devreye girer
+        }
+        // Kullanıcı yeni bıraktı -> Sadece 1 kez durma komutu bas ve sustur
+        isActivelyDriving = false;
+        driveModeBadge.innerText = 'AUTO IDLE';
+        driveModeBadge.style.color = 'var(--status-ok)';
+      } else {
+        isActivelyDriving = true;
+        driveModeBadge.innerText = 'MANUAL OVERRIDE';
+        driveModeBadge.style.color = 'var(--status-warn)';
+      }
+
+      const twistMsg = new ROSLIB.Message({
+        header: {
+          stamp: {
+            sec: Math.floor(Date.now() / 1000),
+            nanosec: (Date.now() % 1000) * 1000000
+          },
+          frame_id: 'base_link'
+        },
+        twist: {
+          linear: { x: lin, y: 0.0, z: 0.0 },
+          angular: { x: 0.0, y: 0.0, z: ang }
+        }
+      });
+
+      cmdVelTeleopTopic.publish(twistMsg);
 
       document.getElementById('hudSpeed').innerText = `SPD: ${Math.abs(lin).toFixed(2)} m/s`;
     }
+
+    // Döngü çalışır ama sadece hareket varken veya tam durma anında veri basar
     setInterval(sendTwist, 50);
 
     // Joystick Mekaniği
@@ -514,29 +559,37 @@
       targetLin = -(ky / 42) * maxLin;
     }
 
-    stick.addEventListener('pointerdown', (e) => { isDragging = true; handleJoy(e.clientX, e.clientY); });
-    window.addEventListener('pointermove', (e) => { if (isDragging) handleJoy(e.clientX, e.clientY); });
+    stick.addEventListener('pointerdown', (e) => { 
+      isDragging = true; 
+      handleJoy(e.clientX, e.clientY); 
+    });
+    window.addEventListener('pointermove', (e) => { 
+      if (isDragging) handleJoy(e.clientX, e.clientY); 
+    });
     window.addEventListener('pointerup', () => {
       if (isDragging) {
         isDragging = false;
         knob.style.transform = 'translate(0, 0)';
-        targetLin = 0; targetAng = 0;
-        sendTwist();
+        targetLin = 0.0; 
+        targetAng = 0.0;
+        sendTwist(); // Son durma komutunu gönderir
       }
     });
 
     // Klavye Teleop (WASD)
     const keys = {};
     window.addEventListener('keydown', (e) => {
-      if (['w', 'a', 's', 'd', ' '].includes(e.key.toLowerCase())) {
-        keys[e.key.toLowerCase()] = true;
-        if (e.key === ' ') { emergencyStop(); return; }
+      const k = e.key.toLowerCase();
+      if (['w', 'a', 's', 'd', ' '].includes(k)) {
+        keys[k] = true;
+        if (k === ' ') { emergencyStop(); return; }
         updateKeys();
       }
     });
     window.addEventListener('keyup', (e) => {
-      if (['w', 'a', 's', 'd'].includes(e.key.toLowerCase())) {
-        keys[e.key.toLowerCase()] = false;
+      const k = e.key.toLowerCase();
+      if (['w', 'a', 's', 'd'].includes(k)) {
+        keys[k] = false;
         updateKeys();
       }
     });
@@ -547,12 +600,15 @@
       if (keys['s']) l -= maxLin;
       if (keys['a']) a += maxAng;
       if (keys['d']) a -= maxAng;
-      targetLin = l; targetAng = a;
+      targetLin = l; 
+      targetAng = a;
     }
 
     function emergencyStop() {
       isDragging = false;
-      targetLin = 0; targetAng = 0;
+      targetLin = 0.0; 
+      targetAng = 0.0;
+      keys['w'] = false; keys['a'] = false; keys['s'] = false; keys['d'] = false;
       knob.style.transform = 'translate(0, 0)';
       sendTwist();
     }
