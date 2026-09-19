@@ -386,10 +386,10 @@
       setTimeout(() => ros.connect(`ws://${host}:9090`), 2000);
     });
 
-    // DOĞRUDAN ÇALIŞAN STANDART TWIST (ESP32 UYUMLU)
+    // TWIST_MUX TELEOP GİRİŞİNE YAYIN YAPIYORUZ
     const cmdVelTopic = new ROSLIB.Topic({ 
       ros: ros, 
-      name: '/cmd_vel', 
+      name: '/cmd_vel_teleop', 
       messageType: 'geometry_msgs/Twist' 
     });
 
@@ -453,35 +453,62 @@
       }
     });
 
-    const trackWidth = 0.22;
-    const slipFactor = 1.25;
-    const effectiveWidth = trackWidth * slipFactor;
+    // --- Motor Çalışma Eşikleri (Linear: 0.40 - 0.60 m/s, Angular: 3.00 - 5.00 rad/s) ---
+    const MIN_LIN = 0.40;
+    const MAX_LIN = 0.60;
+    const MIN_ANG = 3.00;
+    const MAX_ANG = 5.00;
 
-    let maxLin = 0.6;
-    let maxAng = (2 * maxLin) / effectiveWidth;
     let powerScale = 1.0;
     let targetLin = 0.0;
     let targetAng = 0.0;
+    let stopPacketsSent = 0; // Sürekli sıfır basılmasını engelleyen sayaç
 
     document.getElementById('powerSlider').addEventListener('input', (e) => {
       powerScale = parseInt(e.target.value) / 100.0;
       document.getElementById('powerScaleLabel').innerText = `${e.target.value}%`;
     });
 
+    // Normalize değeri motorun ölü bölgesini aşacak şekilde ölçekle
+    function mapVelocity(norm, minVal, maxVal) {
+      if (Math.abs(norm) < 0.05) return 0.0;
+      const sign = norm > 0 ? 1.0 : -1.0;
+      const ratio = Math.min(Math.abs(norm), 1.0);
+      return sign * (minVal + ratio * (maxVal - minVal)) * powerScale;
+    }
+
     function sendTwist() {
       if (!ros.isConnected) return;
-      const lin = targetLin * powerScale;
-      const ang = targetAng * powerScale;
 
-      cmdVelTopic.publish(new ROSLIB.Message({
-        linear: { x: lin, y: 0.0, z: 0.0 },
-        angular: { x: 0.0, y: 0.0, z: ang }
-      }));
+      const isCommandActive = (Math.abs(targetLin) > 0.05 || Math.abs(targetAng) > 0.05);
 
-      document.getElementById('hudSpeed').innerText = `SPD: ${Math.abs(lin).toFixed(2)} m/s`;
+      if (isCommandActive) {
+        stopPacketsSent = 0;
+        const lin = mapVelocity(targetLin, MIN_LIN, MAX_LIN);
+        const ang = mapVelocity(targetAng, MIN_ANG, MAX_ANG);
+
+        cmdVelTopic.publish(new ROSLIB.Message({
+          linear: { x: lin, y: 0.0, z: 0.0 },
+          angular: { x: 0.0, y: 0.0, z: ang }
+        }));
+
+        document.getElementById('hudSpeed').innerText = `SPD: ${Math.abs(lin).toFixed(2)} m/s`;
+      } else {
+        // Kontrol bırakıldığında aracı durdurmak için 3 kez sıfır bas ve sus
+        if (stopPacketsSent < 3) {
+          cmdVelTopic.publish(new ROSLIB.Message({
+            linear: { x: 0.0, y: 0.0, z: 0.0 },
+            angular: { x: 0.0, y: 0.0, z: 0.0 }
+          }));
+          stopPacketsSent++;
+          document.getElementById('hudSpeed').innerText = `SPD: 0.00 m/s`;
+        }
+        // stopPacketsSent >= 3 olduğunda hat boş kalır, twist_mux otonom kaçınmaya geçebilir
+      }
     }
     setInterval(sendTwist, 50);
 
+    // --- JOYSTICK ---
     const stick = document.getElementById('stickContainer');
     const knob = document.getElementById('stickKnob');
     let isDragging = false;
@@ -497,49 +524,62 @@
       const ky = dist * Math.sin(angle);
       knob.style.transform = `translate(${kx}px, ${ky}px)`;
 
-      targetAng = -(kx / 42) * maxAng;
-      targetLin = -(ky / 42) * maxLin;
+      // Normalleştirilmiş sürüş oranları [-1.0, 1.0]
+      targetAng = -(kx / 42.0);
+      targetLin = -(ky / 42.0);
     }
 
-    stick.addEventListener('pointerdown', (e) => { isDragging = true; handleJoy(e.clientX, e.clientY); });
-    window.addEventListener('pointermove', (e) => { if (isDragging) handleJoy(e.clientX, e.clientY); });
+    stick.addEventListener('pointerdown', (e) => { 
+      isDragging = true; 
+      handleJoy(e.clientX, e.clientY); 
+    });
+    window.addEventListener('pointermove', (e) => { 
+      if (isDragging) handleJoy(e.clientX, e.clientY); 
+    });
     window.addEventListener('pointerup', () => {
       if (isDragging) {
         isDragging = false;
         knob.style.transform = 'translate(0, 0)';
-        targetLin = 0; targetAng = 0;
-        sendTwist();
+        targetLin = 0.0; 
+        targetAng = 0.0;
       }
     });
 
+    // --- KLAVYE (WASD) ---
     const keys = {};
     window.addEventListener('keydown', (e) => {
-      if (['w', 'a', 's', 'd', ' '].includes(e.key.toLowerCase())) {
-        keys[e.key.toLowerCase()] = true;
-        if (e.key === ' ') { emergencyStop(); return; }
+      const k = e.key.toLowerCase();
+      if (['w', 'a', 's', 'd', ' '].includes(k)) {
+        keys[k] = true;
+        if (k === ' ') { emergencyStop(); return; }
         updateKeys();
       }
     });
     window.addEventListener('keyup', (e) => {
-      if (['w', 'a', 's', 'd'].includes(e.key.toLowerCase())) {
-        keys[e.key.toLowerCase()] = false;
+      const k = e.key.toLowerCase();
+      if (['w', 'a', 's', 'd'].includes(k)) {
+        keys[k] = false;
         updateKeys();
       }
     });
 
     function updateKeys() {
-      let l = 0, a = 0;
-      if (keys['w']) l += maxLin;
-      if (keys['s']) l -= maxLin;
-      if (keys['a']) a += maxAng;
-      if (keys['d']) a -= maxAng;
-      targetLin = l; targetAng = a;
+      let l = 0.0, a = 0.0;
+      if (keys['w']) l += 1.0;
+      if (keys['s']) l -= 1.0;
+      if (keys['a']) a += 1.0;
+      if (keys['d']) a -= 1.0;
+      targetLin = l; 
+      targetAng = a;
     }
 
     function emergencyStop() {
       isDragging = false;
-      targetLin = 0; targetAng = 0;
+      targetLin = 0.0; 
+      targetAng = 0.0;
+      keys['w'] = false; keys['s'] = false; keys['a'] = false; keys['d'] = false;
       knob.style.transform = 'translate(0, 0)';
+      stopPacketsSent = 0;
       sendTwist();
     }
   </script>
