@@ -20,7 +20,7 @@ setup(
     maintainer='tolgahan',
     maintainer_email='tolgahan@todo.todo',
     description='Vision-based intelligence and depth estimation for tracked UGV',
-    license='TODO: License declaration',
+    license='Apache-2.0',
     extras_require={
         'test': [
             'pytest',
