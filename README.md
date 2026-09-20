@@ -1,12 +1,12 @@
-# UGV ROS — Paletli Taktik Kara Aracı
+# UGV ROS — Tracked Tactical Ground Vehicle
 
-ROS 2 tabanlı, paletli (skid-steer) bir insansız kara aracı (UGV) için geliştirilmiş yazılım yığını. Sistem bir **Raspberry Pi 5** üzerinde çalışır, hareket kontrolünü seri hat üzerinden bağlı bir **ESP32** ile paylaşır ve tarayıcı üzerinden çalışan bir **taktik komuta paneli** (canlı kamera görüntüsü, harita, IMU/GPS telemetrisi ve joystick kontrolü) sağlar.
+A ROS 2-based software stack for a tracked (skid-steer) unmanned ground vehicle (UGV). The system runs on a **Raspberry Pi 5**, shares motion control with an **ESP32** over a serial link, and provides a browser-based **tactical command panel** (live camera feed, map, IMU/GPS telemetry, and joystick control).
 
-## Mimari Genel Bakış
+## Architecture Overview
 
 ```
                 ┌──────────────────────┐
-                │   Web Arayüzü        │  (tarayıcı, roslibjs + Leaflet)
+                │     Web Frontend     │  (browser, roslibjs + Leaflet)
                 │   ugv_web / www      │
                 └─────────┬────────────┘
                     WS 9090 │ MJPEG 8080
@@ -26,113 +26,113 @@ ROS 2 tabanlı, paletli (skid-steer) bir insansız kara aracı (UGV) için geli�
                 └─────────┬────────────┘
                           │ /cmd_vel
                 ┌─────────▼────────────┐
-                │  tracked_hardware     │  UART (binary protokol)
-                │  esp32_bridge (C++)   │◄────────────► ESP32 (motor sürücü)
+                │  tracked_hardware     │  UART (binary protocol)
+                │  esp32_bridge (C++)   │◄────────────► ESP32 (motor driver)
                 └───────────────────────┘
 ```
 
-`tracked_intelligence` paketindeki tam otonom derinlik tahmini + engelden kaçınma node'ları (`depth_node`, `avoidance_node`) kod olarak mevcuttur ancak ana launch dosyasında şu an **devre dışı** bırakılmıştır. Bunun yerine, aynı paket içindeki hafif `collision_guard` node'u ile **sürücü destekli çarpma önleme** (bkz. aşağıda) aktif olarak çalışır.
+The fully autonomous depth estimation + obstacle avoidance nodes in `tracked_intelligence` (`depth_node`, `avoidance_node`) exist in code but are currently **disabled** in the main launch file. Instead, the lightweight `collision_guard` node in the same package provides **driver-assisted collision avoidance** (see below), which is active.
 
-## Paketler (`src/`)
+## Packages (`src/`)
 
-| Paket | Build tipi | Durum | Açıklama |
+| Package | Build type | Status | Description |
 |---|---|---|---|
-| [tracked_bringup](src/tracked_bringup) | ament_python | Aktif | Sistem genelinde launch dosyaları ve konfigürasyon (`robot.launch.py`, parametre YAML'ları) |
-| [tracked_hardware](src/tracked_hardware) | ament_cmake (C++) | Aktif | ESP32 ile UART üzerinden haberleşen donanım köprüsü (`esp32_bridge`) |
-| [tracked_intelligence](src/tracked_intelligence) | ament_python | Kısmen aktif | `collision_guard` (aktif, çarpma önleme) + ONNX derinlik tahmini/otonom kaçınma (kod hazır, launch'ta kapalı) |
-| [ugv_web](src/ugv_web) | ament_python | Aktif | Web arayüzü sunucusu ve statik dosyalar (kontrol paneli) |
+| [tracked_bringup](src/tracked_bringup) | ament_python | Active | System-wide launch files and configuration (`robot.launch.py`, parameter YAMLs) |
+| [tracked_hardware](src/tracked_hardware) | ament_cmake (C++) | Active | Hardware bridge communicating with the ESP32 over UART (`esp32_bridge`) |
+| [tracked_intelligence](src/tracked_intelligence) | ament_python | Partially active | `collision_guard` (active, collision avoidance) + ONNX depth estimation/autonomous avoidance (code ready, disabled in launch) |
+| [ugv_web](src/ugv_web) | ament_python | Active | Web UI server and static files (control panel) |
 
 ### tracked_bringup
 
-Robotu tek komutla ayağa kaldıran launch dosyasını ve ortak parametre dosyalarını barındırır.
+Hosts the launch file and shared parameter files that bring up the whole robot with a single command.
 
-- **`launch/robot.launch.py`** şu node'ları başlatır:
-  - `esp32_bridge` (tracked_hardware) — donanım köprüsü
-  - `twist_mux` — hız komutu arbitrajı
-  - `collision_guard` (tracked_intelligence) — sürücü destekli çarpma önleme filtresi
-  - `camera_ros` — kamera sürücüsü
-  - `web_video_server` — kameradan MJPEG akışı
-  - `rosbridge_websocket` — web arayüzü için WebSocket köprüsü
-  - `ugv_web` `web_server` — statik arayüz sunucusu
-  - *(kapalı)* `depth_node`, `avoidance_node` — tam otonom engelden kaçınma
-- **`config/robot_params.yaml`** — seri port (`/dev/ttyAMA0`), baudrate (115200), palet genişliği (0.22 m), kayma katsayısı (slip_factor 1.25), IMU/GPS frame id'leri.
-- **`config/twist_mux.yaml`** — `/cmd_vel_teleop` (öncelik 100), `/cmd_vel_auto` (öncelik 50), `/e_stop` kilidi (öncelik 255); çıkış `/cmd_vel`'e yönlendirilir.
+- **`launch/robot.launch.py`** starts the following nodes:
+  - `esp32_bridge` (tracked_hardware) — hardware bridge
+  - `twist_mux` — velocity command arbiter
+  - `collision_guard` (tracked_intelligence) — driver-assisted collision avoidance filter
+  - `camera_ros` — camera driver
+  - `web_video_server` — MJPEG stream from the camera
+  - `rosbridge_websocket` — WebSocket bridge for the web UI
+  - `ugv_web` `web_server` — static frontend server
+  - *(disabled)* `depth_node`, `avoidance_node` — fully autonomous obstacle avoidance
+- **`config/robot_params.yaml`** — serial port (`/dev/ttyAMA0`), baud rate (115200), track width (0.22 m), slip factor (1.25), IMU/GPS frame IDs.
+- **`config/twist_mux.yaml`** — `/cmd_vel_teleop` (priority 100), `/cmd_vel_auto` (priority 50), `/e_stop` lock (priority 255); output is remapped to `/cmd_vel`.
 
 ### tracked_hardware
 
-C++ ile yazılmış, Raspberry Pi ↔ ESP32 arasındaki UART haberleşmesini yöneten `esp32_bridge` node'u.
+A C++ `esp32_bridge` node that manages UART communication between the Raspberry Pi and the ESP32.
 
-- `/cmd_vel` (Twist) mesajlarını skid-steer kinematiğiyle sol/sağ palet hızlarına çevirip ESP32'ye özel bir binary protokolle gönderir.
-- ESP32'den gelen verilerden `/imu/data_raw` (sensor_msgs/Imu) ve `/gps/fix` (sensor_msgs/NavSatFix) mesajlarını yayınlar.
-- `include/tracked_hardware/protocol.hpp` — checksum'lı, state-machine tabanlı basit bir çerçeve (frame) protokolü.
-- `include/tracked_hardware/uart_driver.hpp` — POSIX `termios` tabanlı seri port sürücüsü. **Yalnızca Linux'ta** (Raspberry Pi OS) derlenir/çalışır.
+- Converts `/cmd_vel` (Twist) messages into left/right track speeds using skid-steer kinematics and sends them to the ESP32 over a custom binary protocol.
+- Publishes `/imu/data_raw` (sensor_msgs/Imu) and `/gps/fix` (sensor_msgs/NavSatFix) from data received from the ESP32.
+- `include/tracked_hardware/protocol.hpp` — a simple checksummed, state-machine-based frame protocol.
+- `include/tracked_hardware/uart_driver.hpp` — a POSIX `termios`-based serial port driver. **Linux-only** (Raspberry Pi OS); it does not build/run elsewhere.
 
 ### tracked_intelligence
 
-Kameradan gelen görüntüyle çevre farkındalığı sağlayan iki ayrı yaklaşımı barındırır.
+Hosts two separate approaches to camera-based environment awareness.
 
-**`collision_guard` (aktif) — Sürücü Destekli Çarpma Önleme**
+**`collision_guard` (active) — Driver-Assisted Collision Avoidance**
 
-Tam otonom navigasyon değil; joystick ile manuel sürüş sırasında yakın bir engele çarpmayı önleyen bir güvenlik filtresidir. IMU/GPS/lidar gibi ek donanım gerektirmez; nesne tespiti, robotun kamerasına ROS ağı üzerinden erişebilen ayrı bir **PC üzerinde YOLO** ile yapılır.
+Not full autonomous navigation; it's a safety filter that prevents collisions with nearby obstacles while driving manually via joystick. It requires no extra hardware (IMU/GPS/lidar); distance estimation is done by **YOLO26's native monocular depth estimation (`yolo26n-depth.pt`)** running on a separate **PC** that can reach the robot's camera over the ROS network — it produces an absolute distance in meters for every pixel.
 
-- Web arayüzündeki joystick/klavye komutları artık doğrudan `twist_mux`'a değil, `/cmd_vel_teleop_raw` topic'ine yayınlanır.
-- `collision_guard` node'u bu ham komutu dinler; web arayüzündeki **"Otonom Destek"** anahtarı `/assist_enabled` (`std_msgs/Bool`) üzerinden açıksa ve PC'den gelen `/obstacle_zones` (`std_msgs/Int32MultiArray`, `[sol, orta, sağ]`, her biri 0/1) sinyaline göre ileri yöndeki bir bölgede engel varsa, **ileri hareketi keser** (dönüş/geri hareket serbest kalır) ve düzenlenmiş komutu `/cmd_vel_teleop`'a yayınlar — `twist_mux` bu noktadan sonra değişmeden çalışmaya devam eder.
-- `/obstacle_zones` verisi `obstacle_timeout_sec` (varsayılan 1.0 s) süresinden eski ise engel yokmuş gibi davranılır; yani PC/YOLO tarafı bağlantıyı keserse joystick kontrolü kesintisiz sürer.
-- Anlık müdahale durumu `/assist/blocking` (`std_msgs/Bool`) olarak yayınlanır ve web arayüzünde anahtarın kırmızıya dönmesiyle görselleştirilir.
-- PC tarafında çalıştırılacak örnek YOLO→ROS köprüsü: [tools/pc_obstacle_detector.py](tools/pc_obstacle_detector.py) (bu script Pi'nin colcon workspace'ine dahil değildir, ayrı makinede çalışır).
+- Joystick/keyboard commands from the web UI are no longer published directly to `twist_mux`; they go to the `/cmd_vel_teleop_raw` topic instead.
+- The `collision_guard` node listens to this raw command; if the web UI's **"Autonomous Assist"** toggle is on via `/assist_enabled` (`std_msgs/Bool`) and the `/obstacle_zones` signal from the PC (`std_msgs/Int32MultiArray`, `[left, center, right]`, each 0/1) reports an obstacle in a zone the robot is driving into, it **cuts forward motion** (turning/reverse remain free) and publishes the adjusted command to `/cmd_vel_teleop` — `twist_mux` continues to operate unchanged downstream.
+- If `/obstacle_zones` data is older than `obstacle_timeout_sec` (default 1.0 s), it is treated as if there's no obstacle — so if the PC/YOLO side drops off the network, joystick control continues uninterrupted.
+- The current intervention state is published as `/assist/blocking` (`std_msgs/Bool`) and visualized in the web UI by the toggle turning red.
+- Example depth→ROS bridge script to run on the PC: [tools/pc_obstacle_detector.py](tools/pc_obstacle_detector.py) (this script is not part of the Pi's colcon workspace; it runs on a separate machine). It splits the depth map into left/center/right zones and compares the nearest (low-percentile) distance in each zone against the `--near-distance` threshold (default 1.2 m).
+- By default (`--show`, disable with `--no-show`) the script overlays each zone's obstacle status and estimated distance on the camera feed and displays it live in an OpenCV window — useful for visually tuning the threshold.
 
-**`depth_node` / `avoidance_node` (kod hazır, launch'ta kapalı) — Tam Otonom Kaçınma**
+**`depth_node` / `avoidance_node` (code ready, disabled in launch) — Fully Autonomous Avoidance**
 
-- `depth_node` — `/camera/image_raw` görüntüsünü, gömülü ONNX modeli (`models/depth_model.onnx`, MiDaS v2.1 Small) ile CPU üzerinde işleyip `/depth/image_raw` olarak yayınlar.
-- `avoidance_node` — derinlik görüntüsünü sol/orta/sağ bölgelere ayırıp `/cmd_vel_auto` üzerinden dönüş/ilerleme kararı üretir.
-- Bu ikili, tam otonom sürüş için ek IMU/GPS/lidar entegrasyonu gerektirdiğinden şu an `robot.launch.py` içinde yorum satırı olarak kapalı tutuluyor.
+- `depth_node` — processes `/camera/image_raw` with an embedded ONNX model (`models/depth_model.onnx`, MiDaS v2.1 Small) on the CPU and publishes `/depth/image_raw`.
+- `avoidance_node` — splits the depth image into left/center/right zones and produces a turn/forward decision on `/cmd_vel_auto`.
+- This pair requires additional IMU/GPS/lidar integration for fully autonomous driving, so it's currently commented out in `robot.launch.py`.
 
 ### ugv_web
 
-Tarayıcı tabanlı **"UGV Tactical Command Station"** kontrol panelini sunan paket.
+Serves the browser-based **"UGV Tactical Command Station"** control panel.
 
-- `web_server` node'u, `www/` klasörünü basit bir HTTP sunucusuyla (varsayılan port `8000`) servis eder.
-- `www/index.html` tek sayfalık, koyu temalı bir taktik arayüzdür:
-  - `web_video_server`'dan canlı MJPEG kamera görüntüsü
-  - `rosbridge` (roslibjs) üzerinden ROS'a WebSocket bağlantısı
-  - IMU verisiyle yapay ufuk göstergesi ve yaw/heading tahmini
-  - GPS verisiyle Leaflet tabanlı canlı mini harita ve iz (trail) çizimi
-  - Ekran joystick'i + WASD klavye kontrolü, güç yüzdesi ayarlanabilir, `/cmd_vel_teleop_raw`'a 50 ms periyotla yayın yapar (`collision_guard` üzerinden `/cmd_vel_teleop`'a iletilir)
-  - **"Otonom Destek"** anahtarı — çarpma önleme filtresini açıp kapatır (bkz. [tracked_intelligence](#tracked_intelligence))
-  - Acil durdurma butonu / SPACE tuşu (**not:** şu an yalnızca hız komutlarını sıfırlar; `twist_mux`'un `/e_stop` kilidini tetiklemez — bkz. [Bilinen Eksikler](#bilinen-eksikler-ve-yapılacaklar))
+- The `web_server` node serves the `www/` folder as static files over a simple HTTP server (default port `8000`).
+- `www/index.html` is a single-page, dark-themed tactical interface:
+  - Live MJPEG camera feed from `web_video_server`
+  - WebSocket connection to ROS via `rosbridge` (roslibjs)
+  - Artificial horizon and yaw/heading estimation from IMU data
+  - A live Leaflet mini-map with GPS-based position and trail drawing
+  - On-screen joystick + WASD keyboard control, adjustable power percentage, publishing to `/cmd_vel_teleop_raw` every 50 ms (forwarded to `/cmd_vel_teleop` via `collision_guard`)
+  - **"Autonomous Assist"** toggle — turns the collision avoidance filter on/off (see [tracked_intelligence](#tracked_intelligence))
+  - Emergency stop button / SPACE key (**note:** currently only zeroes velocity commands; it does not trigger `twist_mux`'s `/e_stop` lock — see [Known Gaps](#known-gaps-and-todos))
 
-## Gereksinimler
+## Requirements
 
-- ROS 2 (colcon workspace yapısı)
+- ROS 2 (colcon workspace layout)
 - Python 3, `onnxruntime`, `cv_bridge`
-- Sistem genelinde kurulu olması gereken ROS 2 paketleri (bu depoya dahil değildir): `twist_mux`, `camera_ros`, `web_video_server`, `rosbridge_server`
-- `tracked_hardware` yalnızca Linux (POSIX `termios`) üzerinde derlenir — geliştirme/test için bir Raspberry Pi veya Linux makinesi gerekir.
-- **Otonom Destek** özelliği için, robotla aynı ROS ağında (aynı `ROS_DOMAIN_ID`) olan ayrı bir PC üzerinde `ultralytics` (YOLO), `opencv-python` ve `cv_bridge` kurulu olmalı — bkz. [tools/pc_obstacle_detector.py](tools/pc_obstacle_detector.py).
+- ROS 2 packages that must be installed system-wide (not included in this repo): `twist_mux`, `camera_ros`, `web_video_server`, `rosbridge_server`
+- `tracked_hardware` only builds on Linux (POSIX `termios`) — development/testing requires a Raspberry Pi or Linux machine.
+- For **Autonomous Assist**, a separate PC on the same ROS network (same `ROS_DOMAIN_ID`) as the robot needs `ultralytics` (YOLO26 depth) and `opencv-python` installed — see [tools/pc_obstacle_detector.py](tools/pc_obstacle_detector.py). Images are decoded directly with numpy without requiring `cv_bridge`; either a raw (`sensor_msgs/Image`) or compressed (`sensor_msgs/CompressedImage`) camera topic can be used.
 
-## Kurulum ve Çalıştırma
+## Setup and Running
 
 ```bash
-# Workspace kökünde
+# From the workspace root
 colcon build
 source install/setup.bash
 
-# Tüm sistemi başlat
+# Bring up the whole system
 ros2 launch tracked_bringup robot.launch.py
 ```
 
-Web arayüzüne erişim: `http://<robot-ip>:8000`
+Access the web UI at: `http://<robot-ip>:8000`
 
-Otonom Destek (çarpma önleme) için, robotla aynı ROS ağındaki PC'de:
+For Autonomous Assist (collision avoidance), on a PC on the same ROS network:
 
 ```bash
 python3 tools/pc_obstacle_detector.py
 ```
 
-çalıştırılıp web arayüzündeki **"Otonom Destek"** anahtarı açılmalıdır.
+then enable the **"Autonomous Assist"** toggle in the web UI.
 
-## Bilinen Eksikler ve Yapılacaklar
+## Known Gaps and Todos
 
-- Web arayüzündeki acil durdurma butonu `/e_stop` topic'ine yayın yapmıyor; `twist_mux` kilidiyle entegre edilmesi gerekiyor.
-- `collision_guard`, hangi yöne dönüldüğüne bakmaksızın üç bölgeden herhangi birinde engel varsa ileri hareketi keser (yön bazlı/kademeli müdahale değil) — ilk sürüm olarak kasıtlı olarak basit tutuldu.
-- `tracked_intelligence` içindeki tam otonom derinlik tahmini ve engelden kaçınma node'ları test amaçlı launch dosyasında kapalı tutuluyor.
-- Robotun URDF/mesh modeli ve görüntü işleme (vision) paketleri henüz projede yok.
+- The emergency stop button in the web UI does not publish to the `/e_stop` topic; it needs to be integrated with the `twist_mux` lock.
+- `collision_guard` cuts forward motion whenever any of the three zones reports an obstacle, regardless of turn direction (not direction-aware or gradual) — kept intentionally simple for this first version.
+- The fully autonomous depth estimation and obstacle avoidance nodes in `tracked_intelligence` are kept disabled in the launch file for now.
