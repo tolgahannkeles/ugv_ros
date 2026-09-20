@@ -29,6 +29,17 @@ def generate_launch_description():
         remappings=[('cmd_vel_out', '/cmd_vel')]
     )
 
+    # SAFETY: PC'deki YOLO tespitine gore manuel surus sirasinda carpmayi onleyen filtre
+    collision_guard_node = Node(
+        package='tracked_intelligence',
+        executable='collision_guard',
+        name='collision_guard',
+        output='screen',
+        respawn=True,
+        respawn_delay=2.0,
+        parameters=[{'obstacle_timeout_sec': 1.0}]
+    )
+
     """
     # 4. INTELLIGENCE: ONNX Monocular Depth Estimation (MiDaS v2.1 Small)
     depth_node = Node(
@@ -101,6 +112,7 @@ def generate_launch_description():
     return LaunchDescription([
         esp32_bridge_node,
         twist_mux_node,
+        collision_guard_node,
         #depth_node,
         #avoidance_node,
         camera_node,

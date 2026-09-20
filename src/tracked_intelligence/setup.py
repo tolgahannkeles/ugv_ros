@@ -30,6 +30,7 @@ setup(
         'console_scripts': [
             'depth_node = tracked_intelligence.depth_node:main',
             'avoidance_node = tracked_intelligence.avoidance_node:main',
+            'collision_guard = tracked_intelligence.collision_guard_node:main',
         ],
     },
 )

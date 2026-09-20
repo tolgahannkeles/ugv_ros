@@ -226,6 +226,18 @@
       transition: all 0.15s;
     }
     .btn-estop:hover { background: var(--status-danger); color: #fff; }
+
+    .btn-assist {
+      width: 100%; height: 34px; margin-bottom: 8px;
+      background: rgba(148, 163, 184, 0.08);
+      border: 1px solid var(--border-color);
+      color: var(--text-dim);
+      font-size: 0.72rem; font-weight: 700;
+      border-radius: 4px; cursor: pointer; text-transform: uppercase;
+      transition: all 0.15s;
+    }
+    .btn-assist.active { background: rgba(16, 185, 129, 0.15); border-color: var(--status-ok); color: var(--status-ok); }
+    .btn-assist.blocking { background: rgba(239, 68, 68, 0.2); border-color: var(--status-danger); color: var(--status-danger); }
   </style>
 </head>
 <body>
@@ -340,6 +352,7 @@
       </div>
 
       <div class="card" style="margin-top:auto;">
+        <button class="btn-assist" id="assistBtn" onclick="toggleAssist()">OTONOM DESTEK: KAPALI</button>
         <button class="btn-estop" onclick="emergencyStop()">ACİL DURDURMA [SPACE]</button>
       </div>
 
@@ -379,6 +392,7 @@
     ros.on('connection', () => {
       rosDot.classList.add('active');
       rosStatus.innerText = 'ONLINE';
+      assistEnabledTopic.publish(new ROSLIB.Message({ data: assistEnabled }));
     });
     ros.on('close', () => {
       rosDot.classList.remove('active');
@@ -386,15 +400,34 @@
       setTimeout(() => ros.connect(`ws://${host}:9090`), 2000);
     });
 
-    // TWIST_MUX TELEOP GİRİŞİNE YAYIN YAPIYORUZ
-    const cmdVelTopic = new ROSLIB.Topic({ 
-      ros: ros, 
-      name: '/cmd_vel_teleop', 
-      messageType: 'geometry_msgs/Twist' 
+    // COLLISION_GUARD'A HAM KOMUT OLARAK GİDİYOR, GUARD /cmd_vel_teleop'A YAYINLIYOR
+    const cmdVelTopic = new ROSLIB.Topic({
+      ros: ros,
+      name: '/cmd_vel_teleop_raw',
+      messageType: 'geometry_msgs/Twist'
     });
 
     const imuTopic = new ROSLIB.Topic({ ros: ros, name: '/imu/data_raw', messageType: 'sensor_msgs/Imu' });
     const gpsTopic = new ROSLIB.Topic({ ros: ros, name: '/gps/fix', messageType: 'sensor_msgs/NavSatFix' });
+
+    // OTONOM DESTEK (ÇARPMA ÖNLEYİCİ) — açıksa collision_guard, PC'deki YOLO'nun
+    // /obstacle_zones sinyaline bakıp ileri hareketi keser
+    const assistEnabledTopic = new ROSLIB.Topic({ ros: ros, name: '/assist_enabled', messageType: 'std_msgs/Bool' });
+    const assistBlockingTopic = new ROSLIB.Topic({ ros: ros, name: '/assist/blocking', messageType: 'std_msgs/Bool' });
+
+    let assistEnabled = false;
+    const assistBtn = document.getElementById('assistBtn');
+
+    function toggleAssist() {
+      assistEnabled = !assistEnabled;
+      assistEnabledTopic.publish(new ROSLIB.Message({ data: assistEnabled }));
+      assistBtn.classList.toggle('active', assistEnabled);
+      assistBtn.innerText = `OTONOM DESTEK: ${assistEnabled ? 'AÇIK' : 'KAPALI'}`;
+    }
+
+    assistBlockingTopic.subscribe((msg) => {
+      assistBtn.classList.toggle('blocking', msg.data === true);
+    });
 
     let currentYaw = 0.0;
     let lastImuTime = null;
