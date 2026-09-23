@@ -2,619 +2,263 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>UGV Tactical Command Station</title>
-  
-  <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UGV Komuta Paneli</title>
+  <link rel="icon" href="data:,">
 
-  <style>
-    :root {
-      --bg-base: #0a0d14;
-      --bg-panel: #111722;
-      --border-color: #1e293b;
-      --accent-blue: #3b82f6;
-      --accent-cyan: #06b6d4;
-      --text-main: #f8fafc;
-      --text-dim: #64748b;
-      --status-ok: #10b981;
-      --status-danger: #ef4444;
-      --mono-font: 'JetBrains Mono', Consolas, monospace;
-      --sans-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background-color: var(--bg-base);
-      color: var(--text-main);
-      font-family: var(--sans-font);
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      user-select: none;
-    }
-
-    /* HEADER */
-    header {
-      height: 42px;
-      min-height: 42px;
-      background: var(--bg-panel);
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 16px;
-      font-size: 0.8rem;
-    }
-    .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; letter-spacing: 0.5px; }
-    .badge { font-family: var(--mono-font); font-size: 0.65rem; background: #1e293b; color: var(--accent-cyan); padding: 2px 6px; border-radius: 3px; }
-    .status-group { display: flex; gap: 16px; font-family: var(--mono-font); font-size: 0.75rem; align-items: center; }
-    .pill { display: flex; align-items: center; gap: 6px; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-danger); }
-    .dot.active { background: var(--status-ok); box-shadow: 0 0 8px rgba(16, 185, 129, 0.6); }
-
-    /* WORKSPACE */
-    .workspace {
-      flex: 1;
-      display: grid;
-      grid-template-columns: 1fr 340px;
-      height: calc(100vh - 42px);
-      min-height: 0;
-      position: relative;
-    }
-
-    /* VIEWPORT */
-    .viewport-container {
-      position: relative;
-      background: #000;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-    }
-
-    #cameraStream {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-
-    .hud-layer {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: 14px;
-      font-family: var(--mono-font);
-      font-size: 0.75rem;
-      z-index: 10;
-    }
-    .hud-box {
-      background: rgba(15, 23, 42, 0.8);
-      backdrop-filter: blur(4px);
-      padding: 5px 10px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
-    }
-    .hud-crosshair {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 40px; height: 40px;
-      pointer-events: none;
-    }
-    .hud-crosshair::before, .hud-crosshair::after {
-      content: ''; position: absolute; background: rgba(59, 130, 246, 0.6);
-    }
-    .hud-crosshair::before { top: 50%; left: 0; right: 0; height: 1px; }
-    .hud-crosshair::after { left: 50%; top: 0; bottom: 0; width: 1px; }
-
-    /* TAKTIK HARITA */
-    .pip-map {
-      position: absolute;
-      bottom: 16px;
-      left: 16px;
-      width: 280px;
-      height: 200px;
-      background: #0f172a;
-      border: 2px solid var(--border-color);
-      border-radius: 6px;
-      overflow: hidden;
-      z-index: 20;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-      transition: border-color 0.2s;
-    }
-    .pip-map:hover { border-color: var(--accent-blue); }
-    #mapView { width: 100%; height: 100%; }
-
-    .dark-tiles .leaflet-tile {
-      filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
-    }
-
-    /* SIDEBAR */
-    .sidebar {
-      background: var(--bg-panel);
-      border-left: 1px solid var(--border-color);
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      padding: 10px;
-      overflow-y: auto;
-    }
-    .card {
-      background: var(--bg-base);
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      padding: 10px;
-    }
-    .card-title {
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-dim);
-      margin-bottom: 8px;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    /* ATTITUDE */
-    .attitude-wrap {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 4px 0;
-    }
-    .gyro-disc {
-      width: 90px;
-      height: 90px;
-      border-radius: 50%;
-      border: 2px solid #334155;
-      position: relative;
-      overflow: hidden;
-      background: #0f172a;
-    }
-    .horizon-sky { position: absolute; width: 100%; height: 50%; top: 0; background: #0284c7; }
-    .horizon-ground { position: absolute; width: 100%; height: 50%; bottom: 0; background: #78350f; }
-    .horizon-bar {
-      position: absolute; top: 50%; left: -20%; width: 140%; height: 2px;
-      background: #f8fafc; transform-origin: center center;
-    }
-    .reticle {
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      width: 20px; height: 4px; border: 1px solid #facc15; border-top: none;
-    }
-
-    .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-    .metric-box {
-      background: var(--bg-panel);
-      border: 1px solid var(--border-color);
-      border-radius: 3px;
-      padding: 6px 8px;
-    }
-    .metric-box.span-2 { grid-column: span 2; }
-    .m-lbl { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; }
-    .m-val { font-family: var(--mono-font); font-size: 1rem; font-weight: 600; color: var(--text-main); margin-top: 2px; }
-
-    /* JOYSTICK */
-    .ctrl-wrap { display: flex; flex-direction: column; align-items: center; padding: 6px 0; }
-    #stickContainer {
-      width: 120px; height: 120px; background: var(--bg-panel);
-      border: 1px solid var(--border-color); border-radius: 50%;
-      position: relative; touch-action: none;
-      display: flex; align-items: center; justify-content: center;
-    }
-    #stickKnob {
-      width: 36px; height: 36px; background: var(--accent-blue);
-      border-radius: 50%; position: absolute; pointer-events: none;
-      box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
-    }
-
-    .btn-estop {
-      width: 100%; height: 38px;
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid var(--status-danger);
-      color: var(--status-danger);
-      font-size: 0.8rem; font-weight: 700;
-      border-radius: 4px; cursor: pointer; text-transform: uppercase;
-      transition: all 0.15s;
-    }
-    .btn-estop:hover { background: var(--status-danger); color: #fff; }
-
-    .btn-assist {
-      width: 100%; height: 34px; margin-bottom: 8px;
-      background: rgba(148, 163, 184, 0.08);
-      border: 1px solid var(--border-color);
-      color: var(--text-dim);
-      font-size: 0.72rem; font-weight: 700;
-      border-radius: 4px; cursor: pointer; text-transform: uppercase;
-      transition: all 0.15s;
-    }
-    .btn-assist.active { background: rgba(16, 185, 129, 0.15); border-color: var(--status-ok); color: var(--status-ok); }
-    .btn-assist.blocking { background: rgba(239, 68, 68, 0.2); border-color: var(--status-danger); color: var(--status-danger); }
-  </style>
+  <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js" defer></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+  <script type="module" src="js/main.js"></script>
 </head>
 <body>
 
-  <header>
-    <div class="brand">
-      <span>UGV MISSION HUB</span>
-      <span class="badge">ROS 2 GCS</span>
+  <!-- Uyarı paneli: normalde gri, yalnızca anormal durumda renklenir (ISA-101) -->
+  <header class="topbar">
+    <div class="unit-id">
+      <span class="unit-name">UGV-01</span>
+      <span class="unit-sub">KOMUTA PANELİ</span>
     </div>
-    <div class="status-group">
-      <div class="pill">
-        <div class="dot" id="rosDot"></div>
-        <span id="rosStatus">DISCONNECTED</span>
+    <div class="annunciator" aria-label="Sistem durumu">
+      <div class="ann" id="annLink" data-level="caution">
+        <span class="ann-label">BAĞLANTI</span>
+        <span class="ann-value">BEKLENİYOR</span>
       </div>
-      <div class="pill">
-        <span style="color:var(--text-dim)">GPS:</span>
-        <span id="gpsStatus" style="color:var(--status-danger)">NO FIX</span>
+      <div class="ann" id="annCam" data-level="off">
+        <span class="ann-label">VİDEO</span>
+        <span class="ann-value">—</span>
       </div>
-      <div class="pill">
-        <span style="color:var(--text-dim)">TIME:</span>
-        <span id="utcClock">00:00:00</span>
+      <div class="ann" id="annGps" data-level="caution">
+        <span class="ann-label">GPS</span>
+        <span class="ann-value">VERİ YOK</span>
       </div>
+      <div class="ann" id="annImu" data-level="caution">
+        <span class="ann-label">IMU</span>
+        <span class="ann-value">VERİ YOK</span>
+      </div>
+      <div class="ann" id="annTilt" data-level="off">
+        <span class="ann-label">EĞİM</span>
+        <span class="ann-value">—</span>
+      </div>
+      <div class="ann" id="annAssist" data-level="off">
+        <span class="ann-label">DESTEK</span>
+        <span class="ann-value">KAPALI</span>
+      </div>
+      <div class="ann" id="annEStop" data-level="normal">
+        <span class="ann-label">ACİL DUR</span>
+        <span class="ann-value">SERBEST</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="clock" id="clock">--:--:--</span>
+      <button type="button" class="btn btn-sm" id="helpBtn" title="Klavye kısayolları">YARDIM <kbd>H</kbd></button>
     </div>
   </header>
 
-  <div class="workspace">
-    
-    <div class="viewport-container">
-      <img id="cameraStream" src="" alt="CAMERA FEED OFFLINE">
-      
-      <div class="hud-layer">
-        <div style="display:flex; justify-content:space-between;">
-          <div class="hud-box">SRC: /camera/image_raw</div>
-          <div class="hud-box" id="hudSpeed">SPD: 0.00 m/s</div>
-        </div>
-        
-        <div class="hud-crosshair"></div>
+  <main class="workspace">
 
-        <div style="display:flex; justify-content:space-between; align-items:flex-end;">
-          <div style="width: 290px;"></div>
-          <div class="hud-box" id="hudCoords">LAT: --.---- | LON: --.----</div>
+    <section class="viewport" id="viewport" aria-label="Video ve harita">
+      <div class="pane pane-main" id="cameraPane">
+        <img id="cameraStream" alt="Araç kamera görüntüsü">
+        <div class="camera-offline" id="cameraOffline" hidden>
+          <p class="offline-title">VİDEO YOK</p>
+          <p class="offline-hint">web_video_server (port 8080) yanıt vermiyor. Birkaç saniyede bir yeniden deneniyor.</p>
+          <button type="button" class="btn" id="cameraRetryBtn">ŞİMDİ DENE</button>
         </div>
       </div>
 
-      <div class="pip-map">
-        <div id="mapView" class="dark-tiles"></div>
-      </div>
-    </div>
-
-    <div class="sidebar">
-      
-      <div class="card">
-        <div class="card-title">
-          <span>Yönelim & Açı</span>
-          <span>MPU-6050</span>
+      <div class="pane pane-pip" id="mapPane">
+        <div id="mapView" class="map-tiles"></div>
+        <div class="map-tools">
+          <button type="button" class="btn btn-xs" id="followBtn" aria-pressed="true" title="Harita aracı takip etsin">TAKİP</button>
+          <button type="button" class="btn btn-xs" id="clearTrailBtn" title="Çizilen izi temizle">İZİ SİL</button>
         </div>
-        <div class="attitude-wrap">
-          <div class="gyro-disc">
-            <div class="horizon-sky"></div>
-            <div class="horizon-ground"></div>
-            <div class="horizon-bar" id="horizonBar"></div>
-            <div class="reticle"></div>
-          </div>
-        </div>
-        <div class="metric-grid" style="margin-top:6px;">
-          <div class="metric-box">
-            <div class="m-lbl">Pitch</div>
-            <div class="m-val" id="valPitch">0.0°</div>
-          </div>
-          <div class="metric-box">
-            <div class="m-lbl">Roll</div>
-            <div class="m-val" id="valRoll">0.0°</div>
-          </div>
-          <div class="metric-box span-2">
-            <div class="m-lbl">Heading (Yaw)</div>
-            <div class="m-val" id="valYaw">0.0° N</div>
-          </div>
-        </div>
+        <p class="map-notice" id="mapNotice" hidden>HARİTA ALTLIĞI YOK (İNTERNET YOK) — KONUM VE İZ ÇİZİLİYOR</p>
       </div>
 
-      <div class="card">
-        <div class="card-title">İvme Verileri</div>
-        <div class="metric-grid">
-          <div class="metric-box">
-            <div class="m-lbl">Acc X</div>
-            <div class="m-val" id="valAx">0.00 <span style="font-size:0.65rem;color:var(--text-dim)">m/s²</span></div>
-          </div>
-          <div class="metric-box">
-            <div class="m-lbl">Acc Z</div>
-            <div class="m-val" id="valAz">9.81 <span style="font-size:0.65rem;color:var(--text-dim)">m/s²</span></div>
-          </div>
-        </div>
-      </div>
+      <button type="button" class="btn btn-sm swap-btn" id="swapBtn" title="Video ve haritanın yerini değiştir">HARİTAYI BÜYÜT <kbd>M</kbd></button>
 
-      <div class="card">
-        <div class="card-title">
-          <span>Sürüş Konsolu</span>
-          <span id="powerScaleLabel">100%</span>
+      <!-- Video üstü bilgi katmanı: yön, ufuk, hız ve engel bölgeleri tek bakışta -->
+      <div class="hud">
+        <div class="heading-tape">
+          <div class="tape-window"><div class="tape-strip" id="tapeStrip"></div></div>
+          <div class="tape-pointer"></div>
+          <div class="tape-readout"><span id="hdgReadout">000</span>°</div>
         </div>
-        <div class="ctrl-wrap">
-          <div id="stickContainer">
-            <div id="stickKnob"></div>
-          </div>
-          <div style="font-size:0.65rem; color:var(--text-dim); margin-top:6px; font-family:var(--mono-font)">
-            WASD VEYA DOKUNMATİK
-          </div>
-        </div>
-        <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
-          <span style="font-size:0.65rem; color:var(--text-dim)">PWR</span>
-          <input type="range" id="powerSlider" min="20" max="100" value="100" style="flex:1; accent-color:var(--accent-blue)">
-        </div>
-      </div>
 
-      <div class="card" style="margin-top:auto;">
-        <button class="btn-assist" id="assistBtn" onclick="toggleAssist()">OTONOM DESTEK: KAPALI</button>
-        <button class="btn-estop" onclick="emergencyStop()">ACİL DURDURMA [SPACE]</button>
-      </div>
+        <div class="alert-stack" aria-live="assertive">
+          <div class="alert alert-warning" id="bannerEStop" hidden>ACİL DUR DEVREDE — ARAÇ HAREKET ETMEZ</div>
+          <div class="alert alert-caution" id="bannerOffline" hidden>ARACA BAĞLANILIYOR…</div>
+          <div class="alert alert-caution" id="bannerBlocking" hidden>ÖNDE ENGEL — İLERİ HAREKET KESİLDİ</div>
+        </div>
 
-    </div>
+        <div class="hud-source" id="hudSource">KAYNAK —</div>
+
+        <div class="hud-side hud-left">
+          <span class="hud-label">HIZ</span>
+          <span class="hud-value" id="hudSpeed">0.00</span>
+          <span class="hud-unit">m/s</span>
+        </div>
+        <div class="hud-side hud-right">
+          <span class="hud-label">PITCH</span>
+          <span class="hud-value"><span id="hudPitch">+0.0</span>°</span>
+          <span class="hud-label">ROLL</span>
+          <span class="hud-value"><span id="hudRoll">+0.0</span>°</span>
+        </div>
+
+        <div class="horizon" id="hudHorizon"></div>
+        <svg class="boresight" width="64" height="18" viewBox="0 0 64 18" aria-hidden="true">
+          <path d="M0 6 H20 L26 14 L32 6 L38 14 L44 6 H64" />
+        </svg>
+
+        <div class="obstacle-bands" aria-label="Engel bölgeleri">
+          <div class="band" data-state="unknown">SOL</div>
+          <div class="band" data-state="unknown">ORTA</div>
+          <div class="band" data-state="unknown">SAĞ</div>
+        </div>
+
+        <div class="hud-coords" id="hudCoords">ENL —  BOY —</div>
+      </div>
+    </section>
+
+    <aside class="panel">
+
+      <!-- ISO 13850: sarı zemin üzerinde kırmızı acil durdurma -->
+      <section class="estop-block" aria-label="Acil durdurma">
+        <button type="button" class="btn-estop" id="estopBtn">
+          <span class="btn-estop-title">ACİL DUR</span>
+          <span class="btn-estop-hint hint-keys">BOŞLUK TUŞU</span>
+        </button>
+        <div class="estop-latched" id="estopLatched" hidden>
+          <div class="estop-state">ACİL DUR DEVREDE</div>
+          <p>Araç tüm hız komutlarını (teleop ve otonom) yok sayıyor.</p>
+          <button type="button" class="btn" id="estopReleaseBtn">KİLİDİ KALDIR</button>
+        </div>
+      </section>
+
+      <section class="group" aria-labelledby="driveTitle">
+        <h2 class="group-title">
+          <span id="driveTitle">SÜRÜŞ</span>
+          <span class="group-state" id="driveState">HAZIR</span>
+        </h2>
+
+        <div class="drive-body">
+          <div class="stick" id="stick" aria-label="Sürüş joystick'i">
+            <span class="stick-label up">İLERİ</span>
+            <span class="stick-label down">GERİ</span>
+            <span class="stick-label left">SOL</span>
+            <span class="stick-label right">SAĞ</span>
+            <div class="stick-knob" id="stickKnob"></div>
+          </div>
+          <table class="readouts">
+            <caption>KOMUT</caption>
+            <tr><th>DOĞRUSAL</th><td id="cmdLin">0.00</td><td class="unit">m/s</td></tr>
+            <tr><th>AÇISAL</th><td id="cmdAng">0.00</td><td class="unit">rad/s</td></tr>
+          </table>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <span class="label">HIZ SINIRI</span>
+            <span class="value" id="powerLabel">100%</span>
+          </div>
+          <div class="segmented" role="group" aria-label="Hız sınırı hazır ayarları">
+            <button type="button" class="btn" data-power="40" aria-pressed="false">YAVAŞ <kbd>1</kbd></button>
+            <button type="button" class="btn" data-power="70" aria-pressed="false">NORMAL <kbd>2</kbd></button>
+            <button type="button" class="btn" data-power="100" aria-pressed="true">HIZLI <kbd>3</kbd></button>
+          </div>
+          <input type="range" id="powerSlider" min="20" max="100" step="5" value="100" aria-label="Hız sınırı yüzdesi">
+        </div>
+
+        <p class="hint drive-hint">
+          <span class="hint-keys">Joystick'i sürükleyin veya <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / ok tuşlarını kullanın.</span>
+          <span class="hint-touch">Joystick'i parmağınızla sürükleyin.</span>
+          Bıraktığınızda araç durur.
+        </p>
+
+        <div class="drive-lock" id="driveLock" hidden>
+          <strong id="driveLockTitle"></strong>
+          <span id="driveLockHint"></span>
+        </div>
+      </section>
+
+      <section class="group" aria-labelledby="assistTitle">
+        <h2 class="group-title"><span id="assistTitle">ÇARPIŞMA ÖNLEME DESTEĞİ</span></h2>
+        <button type="button" class="toggle" id="assistSwitch" role="switch" aria-checked="false" aria-labelledby="assistTitle">
+          <span class="toggle-off">KAPALI</span>
+          <span class="toggle-on">AÇIK</span>
+        </button>
+        <p class="hint">Açıkken önde engel algılanırsa ileri hareket kesilir; dönüş ve geri serbest kalır.</p>
+        <div class="zones">
+          <div class="zone" data-state="unknown">SOL</div>
+          <div class="zone" data-state="unknown">ORTA</div>
+          <div class="zone" data-state="unknown">SAĞ</div>
+        </div>
+        <p class="hint zones-status" id="zonesStatus">Engel verisi yok</p>
+      </section>
+
+      <section class="group" aria-labelledby="telemetryTitle">
+        <h2 class="group-title">
+          <span id="telemetryTitle">TELEMETRİ</span>
+          <button type="button" class="btn btn-xs" id="yawResetBtn" title="Aracın şu anki yönünü 0° (kuzey) kabul et">YÖNÜ SIFIRLA</button>
+        </h2>
+        <div class="instruments">
+          <figure class="inst" id="instHeading">
+            <figcaption><span class="inst-title">YÖN</span><span class="inst-sub">YAW</span></figcaption>
+            <svg viewBox="10 9 80 76" aria-hidden="true"></svg>
+            <div class="inst-value"><span>000</span>°</div>
+            <div class="inst-hint">K</div>
+          </figure>
+          <figure class="inst" id="instPitch" data-level="normal">
+            <figcaption><span class="inst-title">BOYUNA EĞİM</span><span class="inst-sub">PITCH</span></figcaption>
+            <svg viewBox="10 0 80 76" aria-hidden="true"></svg>
+            <div class="inst-value"><span>+0.0</span>°</div>
+            <div class="inst-hint">DÜZ</div>
+          </figure>
+          <figure class="inst" id="instRoll" data-level="normal">
+            <figcaption><span class="inst-title">YANAL EĞİM</span><span class="inst-sub">ROLL</span></figcaption>
+            <svg viewBox="10 0 80 76" aria-hidden="true"></svg>
+            <div class="inst-value"><span>+0.0</span>°</div>
+            <div class="inst-hint">DÜZ</div>
+          </figure>
+        </div>
+        <table class="telemetry">
+          <tr><th>İVME X</th><td id="valAx">0.00</td><td class="unit">m/s²</td></tr>
+          <tr><th>İVME Z</th><td id="valAz">0.00</td><td class="unit">m/s²</td></tr>
+          <tr><th>ENLEM</th><td id="valLat">—</td><td class="unit">°</td></tr>
+          <tr><th>BOYLAM</th><td id="valLon">—</td><td class="unit">°</td></tr>
+        </table>
+      </section>
+
+      <section class="group group-log" aria-labelledby="logTitle">
+        <h2 class="group-title"><span id="logTitle">OLAY GÜNLÜĞÜ</span></h2>
+        <ol class="event-log" id="eventLog" aria-live="polite"></ol>
+      </section>
+
+    </aside>
+  </main>
+
+  <dialog id="helpDialog" aria-labelledby="helpTitle">
+    <h2 id="helpTitle">KLAVYE KISAYOLLARI</h2>
+    <table class="shortcuts">
+      <tr><th><kbd>W</kbd> <kbd>S</kbd> / <kbd>↑</kbd> <kbd>↓</kbd></th><td>İleri / geri</td></tr>
+      <tr><th><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd></th><td>Sola / sağa dön</td></tr>
+      <tr><th><kbd>BOŞLUK</kbd></th><td>Acil dur (her zaman çalışır)</td></tr>
+      <tr><th><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></th><td>Hız sınırı: yavaş / normal / hızlı</td></tr>
+      <tr><th><kbd>M</kbd></th><td>Video ve haritanın yerini değiştir</td></tr>
+      <tr><th><kbd>H</kbd></th><td>Bu pencereyi aç / kapat</td></tr>
+    </table>
+    <form method="dialog">
+      <button class="btn">KAPAT</button>
+    </form>
+  </dialog>
+
+  <div class="fatal" id="fatalError" hidden>
+    <h2>ARAYÜZ BAŞLATILAMADI</h2>
+    <p id="fatalDetail"></p>
   </div>
 
-  <script>
-    setInterval(() => {
-      document.getElementById('utcClock').innerText = new Date().toISOString().substring(11, 19);
-    }, 1000);
-
-    const host = window.location.hostname || 'localhost';
-    document.getElementById('cameraStream').src = `http://${host}:8080/stream?topic=/camera/image_raw`;
-
-    const map = L.map('mapView', { zoomControl: false }).setView([39.92077, 32.85411], 16);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
-
-    setTimeout(() => { map.invalidateSize(); }, 300);
-
-    const ugvIcon = L.divIcon({
-      className: 'ugv-marker-wrap',
-      html: `<div id="ugvPin" style="width:16px;height:16px;background:#38bdf8;border:2px solid #fff;border-radius:3px;transform:rotate(0deg);box-shadow:0 0 8px #38bdf8;"></div>`,
-      iconSize: [16, 16],
-      iconAnchor: [8, 8]
-    });
-    const marker = L.marker([39.92077, 32.85411], { icon: ugvIcon }).addTo(map);
-    const trailLine = L.polyline([], { color: '#0ea5e9', weight: 2, opacity: 0.8 }).addTo(map);
-
-    // ROS 2 WebSocket Bağlantısı
-    const ros = new ROSLIB.Ros({ url: `ws://${host}:9090` });
-    const rosDot = document.getElementById('rosDot');
-    const rosStatus = document.getElementById('rosStatus');
-
-    ros.on('connection', () => {
-      rosDot.classList.add('active');
-      rosStatus.innerText = 'ONLINE';
-      assistEnabledTopic.publish(new ROSLIB.Message({ data: assistEnabled }));
-    });
-    ros.on('close', () => {
-      rosDot.classList.remove('active');
-      rosStatus.innerText = 'OFFLINE';
-      setTimeout(() => ros.connect(`ws://${host}:9090`), 2000);
-    });
-
-    // COLLISION_GUARD'A HAM KOMUT OLARAK GİDİYOR, GUARD /cmd_vel_teleop'A YAYINLIYOR
-    const cmdVelTopic = new ROSLIB.Topic({
-      ros: ros,
-      name: '/cmd_vel_teleop_raw',
-      messageType: 'geometry_msgs/Twist'
-    });
-
-    const imuTopic = new ROSLIB.Topic({ ros: ros, name: '/imu/data', messageType: 'sensor_msgs/Imu' });
-    const gpsTopic = new ROSLIB.Topic({ ros: ros, name: '/gps/fix', messageType: 'sensor_msgs/NavSatFix' });
-
-    // OTONOM DESTEK (ÇARPMA ÖNLEYİCİ) — açıksa collision_guard, PC'deki YOLO'nun
-    // /obstacle_zones sinyaline bakıp ileri hareketi keser
-    const assistEnabledTopic = new ROSLIB.Topic({ ros: ros, name: '/assist_enabled', messageType: 'std_msgs/Bool' });
-    const assistBlockingTopic = new ROSLIB.Topic({ ros: ros, name: '/assist/blocking', messageType: 'std_msgs/Bool' });
-
-    let assistEnabled = false;
-    const assistBtn = document.getElementById('assistBtn');
-
-    function toggleAssist() {
-      assistEnabled = !assistEnabled;
-      assistEnabledTopic.publish(new ROSLIB.Message({ data: assistEnabled }));
-      assistBtn.classList.toggle('active', assistEnabled);
-      assistBtn.innerText = `OTONOM DESTEK: ${assistEnabled ? 'AÇIK' : 'KAPALI'}`;
-    }
-
-    assistBlockingTopic.subscribe((msg) => {
-      assistBtn.classList.toggle('blocking', msg.data === true);
-    });
-
-    let currentYaw = 0.0;
-    let lastImuTime = null;
-
-    imuTopic.subscribe((msg) => {
-      const ax = msg.linear_acceleration.x;
-      const ay = msg.linear_acceleration.y;
-      const az = msg.linear_acceleration.z;
-      const gz = msg.angular_velocity.z;
-
-      document.getElementById('valAx').innerText = ax.toFixed(2);
-      document.getElementById('valAz').innerText = az.toFixed(2);
-
-      const rollDeg = Math.atan2(ay, az) * (180 / Math.PI);
-      const pitchDeg = Math.atan2(-ax, Math.sqrt(ay * ay + az * az)) * (180 / Math.PI);
-
-      const now = performance.now();
-      if (lastImuTime) {
-        const dt = (now - lastImuTime) / 1000.0;
-        currentYaw += (gz * (180 / Math.PI)) * dt;
-        currentYaw = (currentYaw % 360 + 360) % 360;
-      }
-      lastImuTime = now;
-
-      document.getElementById('valRoll').innerText = `${rollDeg.toFixed(1)}°`;
-      document.getElementById('valPitch').innerText = `${pitchDeg.toFixed(1)}°`;
-      document.getElementById('valYaw').innerText = `${currentYaw.toFixed(1)}°`;
-
-      const horizonBar = document.getElementById('horizonBar');
-      const pitchOffset = Math.max(-25, Math.min(25, pitchDeg * 1.2));
-      horizonBar.style.transform = `translateY(${pitchOffset}px) rotate(${-rollDeg}deg)`;
-
-      const pin = document.getElementById('ugvPin');
-      if (pin) pin.style.transform = `rotate(${currentYaw}deg)`;
-    });
-
-    let firstFix = true;
-    gpsTopic.subscribe((msg) => {
-      const lat = msg.latitude;
-      const lon = msg.longitude;
-
-      if (msg.status.status >= 0) {
-        document.getElementById('gpsStatus').innerText = '3D FIX';
-        document.getElementById('gpsStatus').style.color = 'var(--status-ok)';
-      }
-
-      document.getElementById('hudCoords').innerText = `LAT: ${lat.toFixed(5)} | LON: ${lon.toFixed(5)}`;
-
-      const pos = [lat, lon];
-      marker.setLatLng(pos);
-      trailLine.addLatLng(pos);
-
-      if (firstFix) {
-        map.panTo(pos);
-        firstFix = false;
-      }
-    });
-
-    // --- Motor Çalışma Eşikleri (Linear: 0.40 - 0.60 m/s, Angular: 3.00 - 5.00 rad/s) ---
-    const MIN_LIN = 0.40;
-    const MAX_LIN = 0.60;
-    const MIN_ANG = 3.00;
-    const MAX_ANG = 5.00;
-
-    let powerScale = 1.0;
-    let targetLin = 0.0;
-    let targetAng = 0.0;
-    let stopPacketsSent = 0; // Sürekli sıfır basılmasını engelleyen sayaç
-
-    document.getElementById('powerSlider').addEventListener('input', (e) => {
-      powerScale = parseInt(e.target.value) / 100.0;
-      document.getElementById('powerScaleLabel').innerText = `${e.target.value}%`;
-    });
-
-    // Normalize değeri motorun ölü bölgesini aşacak şekilde ölçekle
-    function mapVelocity(norm, minVal, maxVal) {
-      if (Math.abs(norm) < 0.05) return 0.0;
-      const sign = norm > 0 ? 1.0 : -1.0;
-      const ratio = Math.min(Math.abs(norm), 1.0);
-      return sign * (minVal + ratio * (maxVal - minVal)) * powerScale;
-    }
-
-    function sendTwist() {
-      if (!ros.isConnected) return;
-
-      const isCommandActive = (Math.abs(targetLin) > 0.05 || Math.abs(targetAng) > 0.05);
-
-      if (isCommandActive) {
-        stopPacketsSent = 0;
-        const lin = mapVelocity(targetLin, MIN_LIN, MAX_LIN);
-        const ang = mapVelocity(targetAng, MIN_ANG, MAX_ANG);
-
-        cmdVelTopic.publish(new ROSLIB.Message({
-          linear: { x: lin, y: 0.0, z: 0.0 },
-          angular: { x: 0.0, y: 0.0, z: ang }
-        }));
-
-        document.getElementById('hudSpeed').innerText = `SPD: ${Math.abs(lin).toFixed(2)} m/s`;
-      } else {
-        // Kontrol bırakıldığında aracı durdurmak için 3 kez sıfır bas ve sus
-        if (stopPacketsSent < 3) {
-          cmdVelTopic.publish(new ROSLIB.Message({
-            linear: { x: 0.0, y: 0.0, z: 0.0 },
-            angular: { x: 0.0, y: 0.0, z: 0.0 }
-          }));
-          stopPacketsSent++;
-          document.getElementById('hudSpeed').innerText = `SPD: 0.00 m/s`;
-        }
-        // stopPacketsSent >= 3 olduğunda hat boş kalır, twist_mux otonom kaçınmaya geçebilir
-      }
-    }
-    setInterval(sendTwist, 50);
-
-    // --- JOYSTICK ---
-    const stick = document.getElementById('stickContainer');
-    const knob = document.getElementById('stickKnob');
-    let isDragging = false;
-
-    function handleJoy(cx, cy) {
-      const rect = stick.getBoundingClientRect();
-      const dx = cx - (rect.left + rect.width / 2);
-      const dy = cy - (rect.top + rect.height / 2);
-      const dist = Math.min(42, Math.hypot(dx, dy));
-      const angle = Math.atan2(dy, dx);
-
-      const kx = dist * Math.cos(angle);
-      const ky = dist * Math.sin(angle);
-      knob.style.transform = `translate(${kx}px, ${ky}px)`;
-
-      // Normalleştirilmiş sürüş oranları [-1.0, 1.0]
-      targetAng = -(kx / 42.0);
-      targetLin = -(ky / 42.0);
-    }
-
-    stick.addEventListener('pointerdown', (e) => { 
-      isDragging = true; 
-      handleJoy(e.clientX, e.clientY); 
-    });
-    window.addEventListener('pointermove', (e) => { 
-      if (isDragging) handleJoy(e.clientX, e.clientY); 
-    });
-    window.addEventListener('pointerup', () => {
-      if (isDragging) {
-        isDragging = false;
-        knob.style.transform = 'translate(0, 0)';
-        targetLin = 0.0; 
-        targetAng = 0.0;
-      }
-    });
-
-    // --- KLAVYE (WASD) ---
-    const keys = {};
-    window.addEventListener('keydown', (e) => {
-      const k = e.key.toLowerCase();
-      if (['w', 'a', 's', 'd', ' '].includes(k)) {
-        keys[k] = true;
-        if (k === ' ') { emergencyStop(); return; }
-        updateKeys();
-      }
-    });
-    window.addEventListener('keyup', (e) => {
-      const k = e.key.toLowerCase();
-      if (['w', 'a', 's', 'd'].includes(k)) {
-        keys[k] = false;
-        updateKeys();
-      }
-    });
-
-    function updateKeys() {
-      let l = 0.0, a = 0.0;
-      if (keys['w']) l += 1.0;
-      if (keys['s']) l -= 1.0;
-      if (keys['a']) a += 1.0;
-      if (keys['d']) a -= 1.0;
-      targetLin = l; 
-      targetAng = a;
-    }
-
-    function emergencyStop() {
-      isDragging = false;
-      targetLin = 0.0; 
-      targetAng = 0.0;
-      keys['w'] = false; keys['s'] = false; keys['a'] = false; keys['d'] = false;
-      knob.style.transform = 'translate(0, 0)';
-      stopPacketsSent = 0;
-      sendTwist();
-    }
-  </script>
 </body>
 </html>

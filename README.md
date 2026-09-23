@@ -97,7 +97,7 @@ This is not full autonomous navigation. It is a safety filter that prevents coll
 - Joystick/keyboard commands from the web UI go to the `/cmd_vel_teleop_raw` topic.
 - The `collision_guard` node listens to this raw command. If the web UI's **"Autonomous Assist"** toggle is on (`/assist_enabled`, `std_msgs/Bool`) and the `/obstacle_zones` signal from the PC (`std_msgs/Int32MultiArray`, `[left, center, right]`, each 0/1) reports an obstacle in a zone the robot is driving into, it **cuts forward motion** (turning/reverse remain free) and publishes the adjusted command to `/cmd_vel_teleop`. With `use_stamped: true` (robot and simulation), it publishes `TwistStamped` for `twist_mux` and `diff_drive_controller`.
 - If `/obstacle_zones` data is older than `obstacle_timeout_sec` (default 1.0 s), it is treated as if there's no obstacle, so if the PC/YOLO side drops off the network, joystick control continues uninterrupted.
-- The current intervention state is published as `/assist/blocking` (`std_msgs/Bool`) and visualized in the web UI by the toggle turning red.
+- The current intervention state is published as `/assist/blocking` (`std_msgs/Bool`) and shown in the web UI as a warning banner over the camera view.
 - Example depth→ROS bridge script to run on the PC: [tools/pc_obstacle_detector.py](tools/pc_obstacle_detector.py) (not part of the colcon workspace; it runs on a separate machine). It splits the depth map into left/center/right zones and compares the nearest (low-percentile) distance in each zone against the `--near-distance` threshold (default 1.2 m).
 - By default (`--show`, disable with `--no-show`) the script overlays each zone's obstacle status and estimated distance on the camera feed and displays it live in an OpenCV window, which is useful for visually tuning the threshold.
 
@@ -108,17 +108,24 @@ This is not full autonomous navigation. It is a safety filter that prevents coll
 
 ### ugv_web
 
-Serves the browser-based **"UGV Tactical Command Station"** control panel.
+Serves the browser-based **"UGV Komuta Paneli"** operator control unit (Turkish UI).
 
 - The `web_server` node serves the `www/` folder as static files over a simple HTTP server (default port `8000`).
-- `www/index.html` is a single-page, dark-themed tactical interface:
-  - Live MJPEG camera feed from `web_video_server`
-  - WebSocket connection to ROS via `rosbridge` (roslibjs)
-  - Artificial horizon and yaw/heading estimation from `/imu/data`
-  - A live Leaflet mini-map with GPS-based position and trail drawing
-  - On-screen joystick + WASD keyboard control, adjustable power percentage, publishing to `/cmd_vel_teleop_raw` every 50 ms while active (then three zero commands on release)
-  - **"Autonomous Assist"** toggle, which turns the collision avoidance filter on/off (see [ugv_intelligence](#ugv_intelligence))
-  - Emergency stop button / SPACE key (**note:** currently only zeroes velocity commands; it does not trigger `twist_mux`'s `/e_stop` lock; see [Known Gaps](#known-gaps-and-todos))
+- `www/` is laid out as `index.html` (markup), `css/style.css` (styles) and `js/` (ES modules):
+  - `config.js`: all endpoints, topic names, velocity limits and teleop constants
+  - `ros.js`: rosbridge connection manager; reconnects automatically and rebinds every topic on each new connection
+  - `camera.js`, `map.js`, `hud.js`, `instruments.js`, `telemetry.js`, `assist.js`, `estop.js`, `teleop.js`: one module per UI feature; `ui.js` holds shared helpers (annunciators, alerts, event log)
+  - `main.js` checks that the CDN libraries (roslib, Leaflet) loaded and shows an explicit error if not; `app.js` wires the modules together
+- Visual design follows the ISA-101 high-performance HMI approach and video-centric teleoperation interface research (Yanco & Drury, Baker et al., UMass Lowell). Normal state is drawn in neutral grey; colour appears only for abnormal or active states: red = critical (emergency stop, link lost), amber = caution, green = active mode. There are no gradients, shadows or decorative colours.
+- Layout:
+  - **Annunciator panel** (top): link, video, GPS, IMU, assist and emergency-stop status tiles. A sensor turns amber ("VERİ YOK") when no message has arrived for 2 s.
+  - **Video-centric view**: MJPEG feed from `web_video_server` with a fused HUD: heading tape, artificial horizon line with waterline symbol, speed, pitch/roll, and left/center/right obstacle bands from `/obstacle_zones`. Critical alerts appear as flat bars under the heading tape. Video and the Leaflet map can be swapped (`M`). The map shows a heading chevron and a magenta trail, and follows the robot until the user drags it.
+  - **Control panel** (right): ISO 13850-style emergency stop (red on yellow), drive console (joystick + WASD / arrow keys, speed presets `1`/`2`/`3`, slider), collision-avoidance assist switch with zone display, attitude instruments, telemetry table and a timestamped **event log**.
+  - **Attitude instruments**: a north-up compass with a rotating top-view vehicle (yaw), plus ground-vehicle inclinometers with a side-view (pitch) and rear-view (roll) silhouette that tilt by the real angle. Each shows the value with a plain-language direction ("BURUN YUKARI", "SAĞA YATIK", "KB"). Tilt beyond `TILT_CAUTION_DEG` (20°) turns amber and beyond `TILT_WARNING_DEG` (30°) red, raises the "EĞİM" annunciator and writes to the event log. These thresholds are estimates and should be updated once the chassis rollover angle is measured.
+- Attitude and heading use the IMU orientation quaternion when available (`imu_filter_madgwick` / Gazebo), otherwise accelerometer roll/pitch and gyro-integrated yaw. The heading assumes the robot starts facing north (same as `localization_real.yaml`); "Yönü sıfırla" re-zeroes it.
+- Teleop publishes to `/cmd_vel_teleop_raw` every 50 ms while active (then three zero commands on release). Driving stops when the window loses focus or a touch is cancelled, and the drive panel is locked while disconnected or during an emergency stop.
+- Emergency stop button / SPACE key publishes `true` to `/e_stop`, `twist_mux`'s lock (priority 255, no timeout). The lock blocks both teleop and autonomous commands and stays active until "Kilidi kaldır" publishes `false`, even if the page is closed.
+- Responsive layout for tablets and phones (the emergency stop stays pinned while scrolling); press `H` for the shortcut list.
 
 ## Requirements
 
@@ -206,6 +213,6 @@ The CAD models the water crossing as a solid water body level with the ground, s
 - The chassis dimensions in the URDF (wheel radius 0.065 m, wheel pitch 0.135 m, hull size) are estimated from a photo; only the track separation (0.22 m) comes from the robot config. Wheel dimensions are defined in both the URDF and `controllers.yaml` and must be kept in sync.
 - The ESP32 reports no encoder data; odometry on the real robot is command-based.
 - The real IMU has no magnetometer, so the global heading depends on the robot starting facing north.
-- The emergency stop button in the web UI does not publish to the `/e_stop` topic; it needs to be integrated with the `twist_mux` lock.
+- The web UI loads roslib and Leaflet from CDNs, and the map tiles come from OpenStreetMap; without internet access on the operator device the UI cannot start (it shows an explicit error). These libraries should be served locally from `www/vendor/`.
 - `collision_guard` cuts forward motion whenever any of the three zones reports an obstacle, regardless of turn direction (not direction-aware or gradual); this is kept intentionally simple for this first version.
 - The fully autonomous depth estimation and obstacle avoidance nodes in `ugv_intelligence` are disabled.

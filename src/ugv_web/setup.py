@@ -1,8 +1,19 @@
 import os
-from glob import glob
 from setuptools import find_packages, setup
 
 package_name = 'ugv_web'
+
+
+def www_data_files():
+    # www altındaki statik dosyaları (HTML/CSS/JS) klasör yapısını koruyarak kopyala
+    entries = []
+    for root, _, files in os.walk(os.path.join(package_name, 'www')):
+        if files:
+            rel = os.path.relpath(root, package_name)
+            entries.append((os.path.join('share', package_name, rel),
+                            [os.path.join(root, f) for f in files]))
+    return entries
+
 
 setup(
     name=package_name,
@@ -11,9 +22,7 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        # www klasöründeki tüm statik dosyaları (HTML/JS) kopyala
-        (os.path.join('share', package_name, 'www'), glob('ugv_web/www/*')),
-    ],
+    ] + www_data_files(),
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='raspi',

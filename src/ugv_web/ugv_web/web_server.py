@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import functools
 import http.server
 import socketserver
 import os
@@ -18,8 +19,7 @@ class WebServerNode(Node):
         pkg_share = get_package_share_directory('ugv_web')
         www_dir = os.path.join(pkg_share, 'www')
 
-        os.chdir(www_dir)
-        handler = http.server.SimpleHTTPRequestHandler
+        handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=www_dir)
 
         self.get_logger().info(f"Web Arayuzu baslatiliyor: http://0.0.0.0:{port} (Dizin: {www_dir})")
         
