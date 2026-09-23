@@ -20,6 +20,7 @@ struct CmdVelPayload {
 struct ImuPayload {
     float ax, ay, az;
     float gx, gy, gz;
+    float temp;
 };
 
 struct GpsPayload {
@@ -80,13 +81,14 @@ public:
 
             case State::WAIT_CRC: {
                 uint8_t computed_crc = calculate_crc(id_, len_, buffer_);
-                reset();
                 if (computed_crc == byte) {
                     out_id = id_;
                     out_len = len_;
                     std::memcpy(out_payload, buffer_, len_);
+                    reset();
                     return true;
                 }
+                reset();
                 break;
             }
         }
