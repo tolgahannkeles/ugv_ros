@@ -20,3 +20,7 @@ __pycache__/
 
 # Ortam değişkenleri
 .env
+# Teknofest parkur ham CAD dosyaları (büyük; Gazebo türetilmiş STL'leri kullanır)
+teknofest_parkur/*.IGS
+teknofest_parkur/*.STEP
+teknofest_parkur/*.x_t
