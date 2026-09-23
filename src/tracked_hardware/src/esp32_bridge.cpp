@@ -3,6 +3,7 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/nav_sat_status.hpp>
+#include <sensor_msgs/msg/temperature.hpp>
 
 #include <thread>
 #include <atomic>
@@ -43,7 +44,8 @@ public:
             "/cmd_vel", 10, std::bind(&ESP32Bridge::cmd_vel_callback, this, std::placeholders::_1));
         pub_imu_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu/data_raw", 10);
         pub_gps_ = this->create_publisher<sensor_msgs::msg::NavSatFix>("/gps/fix", 10);
-
+        pub_temp_ = this->create_publisher<sensor_msgs::msg::Temperature>("/imu/temperature", 10);
+        
         // CONCURRENCY: Background receiver worker
         running_ = true;
         rx_thread_ = std::thread(&ESP32Bridge::rx_loop, this);
@@ -70,6 +72,7 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_cmd_vel_;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr pub_imu_;
     rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr pub_gps_;
+    rclcpp::Publisher<sensor_msgs::msg::Temperature>::SharedPtr pub_temp_;
 
     // KINEMATICS: Converts Twist to skid-steer wheel speeds with 0.6 m/s clamp
     void cmd_vel_callback(const geometry_msgs::msg::Twist::SharedPtr msg) {
@@ -129,6 +132,7 @@ private:
         auto stamp = this->now();
 
         if (pkt_id == PKT_ID_IMU && len == sizeof(ImuPayload)) {
+            if (pkt_id == PKT_ID_IMU && len == sizeof(ImuPayload)) {
             ImuPayload data;
             std::memcpy(&data, payload, sizeof(ImuPayload));
 
@@ -143,6 +147,14 @@ private:
             msg.angular_velocity.z = data.gz;
             msg.orientation_covariance[0] = -1.0;
             pub_imu_->publish(msg);
+
+            // Sıcaklık yayını:
+            auto temp_msg = sensor_msgs::msg::Temperature();
+            temp_msg.header.stamp = stamp;
+            temp_msg.header.frame_id = imu_frame_id_;
+            temp_msg.temperature = data.temp; // °C
+            temp_msg.variance = 0.0;
+            pub_temp_->publish(temp_msg);
         } else if (pkt_id == PKT_ID_GPS && len == sizeof(GpsPayload)) {
             GpsPayload data;
             std::memcpy(&data, payload, sizeof(GpsPayload));
