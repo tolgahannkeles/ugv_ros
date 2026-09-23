@@ -407,7 +407,7 @@
       messageType: 'geometry_msgs/Twist'
     });
 
-    const imuTopic = new ROSLIB.Topic({ ros: ros, name: '/imu/data_raw', messageType: 'sensor_msgs/Imu' });
+    const imuTopic = new ROSLIB.Topic({ ros: ros, name: '/imu/data', messageType: 'sensor_msgs/Imu' });
     const gpsTopic = new ROSLIB.Topic({ ros: ros, name: '/gps/fix', messageType: 'sensor_msgs/NavSatFix' });
 
     // OTONOM DESTEK (ÇARPMA ÖNLEYİCİ) — açıksa collision_guard, PC'deki YOLO'nun

@@ -1,6 +1,7 @@
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, TwistStamped
 from std_msgs.msg import Bool, Int32MultiArray
 
 
@@ -10,12 +11,16 @@ class CollisionGuardNode(Node):
 
         self.declare_parameter('obstacle_timeout_sec', 1.0)
         self.obstacle_timeout = self.get_parameter('obstacle_timeout_sec').value
+        # true: /cmd_vel_teleop TwistStamped yayinlanir (twist_mux use_stamped + ros2_control)
+        self.declare_parameter('use_stamped', False)
+        self.use_stamped = self.get_parameter('use_stamped').value
 
         self.assist_enabled = False
         self.zones = [0, 0, 0]  # sol, orta, sag
         self.last_zones_stamp = None
 
-        self.cmd_pub = self.create_publisher(Twist, '/cmd_vel_teleop', 10)
+        out_type = TwistStamped if self.use_stamped else Twist
+        self.cmd_pub = self.create_publisher(out_type, '/cmd_vel_teleop', 10)
         self.blocking_pub = self.create_publisher(Bool, '/assist/blocking', 10)
 
         self.create_subscription(Twist, '/cmd_vel_teleop_raw', self.on_cmd, 10)
@@ -55,6 +60,13 @@ class CollisionGuardNode(Node):
             out = Twist()
             out.angular.z = msg.angular.z
 
+        if self.use_stamped:
+            stamped = TwistStamped()
+            stamped.header.stamp = self.get_clock().now().to_msg()
+            stamped.header.frame_id = 'base_link'
+            stamped.twist = out
+            out = stamped
+
         self.cmd_pub.publish(out)
         self.blocking_pub.publish(Bool(data=blocking))
 
@@ -64,9 +76,11 @@ def main(args=None):
     node = CollisionGuardNode()
     try:
         rclpy.spin(node)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        rclpy.try_shutdown()
 
 
 if __name__ == '__main__':
