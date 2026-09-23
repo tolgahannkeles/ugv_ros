@@ -9,9 +9,19 @@
 
   <depend>rclpy</depend>
   
-  <exec_depend>robot_localization</exec_depend>
-  <exec_depend>imu_filter_madgwick</exec_depend>
+  <!-- Ortak katmanlar (simülasyonla aynı) -->
+  <exec_depend>tracked_description</exec_depend>
+  <exec_depend>tracked_control</exec_depend>
+  <exec_depend>tracked_localization</exec_depend>
+  <exec_depend>tracked_intelligence</exec_depend>
+  <exec_depend>ugv_web</exec_depend>
+  <!-- Gerçek robota özel -->
   <exec_depend>tracked_hardware</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>imu_filter_madgwick</exec_depend>
+  <exec_depend>camera_ros</exec_depend>
+  <exec_depend>web_video_server</exec_depend>
+  <exec_depend>rosbridge_server</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
