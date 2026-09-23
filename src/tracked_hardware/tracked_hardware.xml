@@ -1,0 +1,10 @@
+<library path="tracked_hardware">
+  <class name="tracked_hardware/ESP32System"
+         type="tracked_hardware::ESP32System"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      ros2_control system interface for the tracked UGV: drives both tracks through the
+      ESP32 over UART and publishes its IMU/GPS telemetry.
+    </description>
+  </class>
+</library>

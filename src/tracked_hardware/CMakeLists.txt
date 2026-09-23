@@ -1,16 +1,37 @@
 cmake_minimum_required(VERSION 3.8)
 project(tracked_hardware)
 
-# PERFORMANCE / COMPILER: Enforce strict warnings and aggressive optimization for hardware I/O
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic -O3)
+  add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# DEPENDENCIES: ROS 2 core framework and standard interface messages
+# DEPENDENCIES: ros2_control hardware interface + telemetry messages
+set(THIS_PACKAGE_INCLUDE_DEPENDS
+  hardware_interface
+  pluginlib
+  rclcpp
+  rclcpp_lifecycle
+  geometry_msgs
+  sensor_msgs
+)
+
 find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(sensor_msgs REQUIRED)
+foreach(dep IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
+  find_package(${dep} REQUIRED)
+endforeach()
+
+# TARGET: ros2_control plugin (tracked_hardware/ESP32System)
+add_library(tracked_hardware SHARED
+  src/esp32_system.cpp
+)
+target_compile_features(tracked_hardware PUBLIC cxx_std_17)
+target_include_directories(tracked_hardware PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
+)
+ament_target_dependencies(tracked_hardware PUBLIC ${THIS_PACKAGE_INCLUDE_DEPENDS})
+
+pluginlib_export_plugin_description_file(hardware_interface tracked_hardware.xml)
 
 # TESTING: Automatic code quality linters configuration
 if(BUILD_TESTING)
@@ -20,31 +41,17 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-# TARGET: Build the main hardware bridge binary
-add_executable(esp32_bridge src/esp32_bridge.cpp)
-
-# CRITICAL / INCLUDE PATHS: Required for resolving headers inside include/tracked_hardware/
-target_include_directories(esp32_bridge PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
-)
-
-# LINKING: Attach ROS 2 dependencies and include directories
-ament_target_dependencies(esp32_bridge
-  rclcpp
-  geometry_msgs
-  sensor_msgs
-)
-
-# INSTALL: Install executable to package lib directory (required by ros2 run and launch files)
-install(TARGETS
-  esp32_bridge
-  DESTINATION lib/${PROJECT_NAME}
-)
-
-# INSTALL: Export headers if other C++ packages link against tracked_hardware
+# INSTALL
 install(DIRECTORY include/
-  DESTINATION include
+  DESTINATION include/${PROJECT_NAME}
+)
+install(TARGETS tracked_hardware
+  EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
 )
 
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 ament_package()
