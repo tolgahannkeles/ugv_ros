@@ -1,0 +1,115 @@
+<?xml version="1.0" ?>
+<sdf version="1.8">
+  <world name="test_arena">
+    <!-- Fizik Ayarları -->
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <!-- Temel Eklentiler -->
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <!-- IMU ve GPS sensörleri bu sistemler olmadan veri üretmez -->
+    <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu"/>
+    <plugin filename="gz-sim-navsat-system" name="gz::sim::systems::NavSat"/>
+
+    <!-- GPS referansı: dünya orijini bu koordinata denk gelir (AGÜ, Kayseri) -->
+    <spherical_coordinates>
+      <surface_model>EARTH_WGS84</surface_model>
+      <world_frame_orientation>ENU</world_frame_orientation>
+      <latitude_deg>38.7370</latitude_deg>
+      <longitude_deg>35.4730</longitude_deg>
+      <elevation>1050</elevation>
+      <heading_deg>0</heading_deg>
+    </spherical_coordinates>
+
+    <!-- Güneş / Işık -->
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <!-- Zemin -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry><plane><normal>0 0 1</normal></plane></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><plane><normal>0 0 1</normal><size>50 50</size></plane></geometry>
+          <material>
+            <ambient>0.8 0.8 0.8 1</ambient>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Dış Duvarlar (10x10 metre kapalı alan) -->
+    <model name="outer_walls">
+      <static>true</static>
+      <!-- Kuzey Duvarı -->
+      <link name="north_wall">
+        <pose>0 5 0.5 0 0 0</pose>
+        <collision name="col"><geometry><box><size>10 0.2 1.0</size></box></geometry></collision>
+        <visual name="vis"><geometry><box><size>10 0.2 1.0</size></box></geometry><material><diffuse>0.3 0.3 0.3 1</diffuse></material></visual>
+      </link>
+      <!-- Güney Duvarı -->
+      <link name="south_wall">
+        <pose>0 -5 0.5 0 0 0</pose>
+        <collision name="col"><geometry><box><size>10 0.2 1.0</size></box></geometry></collision>
+        <visual name="vis"><geometry><box><size>10 0.2 1.0</size></box></geometry><material><diffuse>0.3 0.3 0.3 1</diffuse></material></visual>
+      </link>
+      <!-- Doğu Duvarı -->
+      <link name="east_wall">
+        <pose>5 0 0.5 0 0 0</pose>
+        <collision name="col"><geometry><box><size>0.2 10 1.0</size></box></geometry></collision>
+        <visual name="vis"><geometry><box><size>0.2 10 1.0</size></box></geometry><material><diffuse>0.3 0.3 0.3 1</diffuse></material></visual>
+      </link>
+      <!-- Batı Duvarı -->
+      <link name="west_wall">
+        <pose>-5 0 0.5 0 0 0</pose>
+        <collision name="col"><geometry><box><size>0.2 10 1.0</size></box></geometry></collision>
+        <visual name="vis"><geometry><box><size>0.2 10 1.0</size></box></geometry><material><diffuse>0.3 0.3 0.3 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- İç Engeller (Sütunlar ve Kutular) -->
+    <model name="obstacle_box_1">
+      <static>true</static>
+      <pose>2 1.5 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>1 1 1</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>1 1 1</size></box></geometry><material><diffuse>0.8 0.2 0.2 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <model name="obstacle_box_2">
+      <static>true</static>
+      <pose>-2 -1.5 0.5 0 0 0.785</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>1.2 0.6 1</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>1.2 0.6 1</size></box></geometry><material><diffuse>0.2 0.8 0.2 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <model name="obstacle_cylinder">
+      <static>true</static>
+      <pose>0 2.5 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><cylinder><radius>0.4</radius><length>1</length></cylinder></geometry></collision>
+        <visual name="v"><geometry><cylinder><radius>0.4</radius><length>1</length></cylinder></geometry><material><diffuse>0.2 0.4 0.9 1</diffuse></material></visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

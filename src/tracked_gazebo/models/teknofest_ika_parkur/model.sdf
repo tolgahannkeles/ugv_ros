@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+<!-- tools/parkur_to_gazebo.py ile uretildi; elle degistirmeyin, araci yeniden calistirin. -->
+<sdf version="1.9">
+  <model name="teknofest_ika_parkur">
+    <static>true</static>
+    <link name="parkur">
+      <visual name="ground">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/ground.stl</uri></mesh></geometry>
+        <material><ambient>0.72 0.58 0.42 1</ambient><diffuse>0.72 0.58 0.42 1</diffuse><specular>0.1 0.1 0.1 1</specular></material>
+      </visual>
+      <visual name="barrier_red">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/barrier_red.stl</uri></mesh></geometry>
+        <material><ambient>0.85 0.06 0.06 1</ambient><diffuse>0.85 0.06 0.06 1</diffuse><specular>0.1 0.1 0.1 1</specular></material>
+      </visual>
+      <visual name="barrier_white">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/barrier_white.stl</uri></mesh></geometry>
+        <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>0.95 0.95 0.95 1</diffuse><specular>0.1 0.1 0.1 1</specular></material>
+      </visual>
+      <visual name="ramps">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/ramps.stl</uri></mesh></geometry>
+        <material><ambient>0.62 0.62 0.64 1</ambient><diffuse>0.62 0.62 0.64 1</diffuse><specular>0.1 0.1 0.1 1</specular></material>
+      </visual>
+      <visual name="gravel">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/gravel.stl</uri></mesh></geometry>
+        <material><ambient>0.25 0.25 0.26 1</ambient><diffuse>0.25 0.25 0.26 1</diffuse><specular>0.1 0.1 0.1 1</specular></material>
+      </visual>
+      <visual name="water">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/water.stl</uri></mesh></geometry>
+        <material><ambient>0.35 0.75 0.9 1</ambient><diffuse>0.35 0.75 0.9 1</diffuse><specular>0.1 0.1 0.1 1</specular></material><transparency>0.45</transparency>
+      </visual>
+      <visual name="cones">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/cones.stl</uri></mesh></geometry>
+        <material><ambient>1.0 0.42 0.0 1</ambient><diffuse>1.0 0.42 0.0 1</diffuse><specular>0.1 0.1 0.1 1</specular></material>
+      </visual>
+      <visual name="sign_plates">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/sign_plates.stl</uri></mesh></geometry>
+        <material><ambient>0.96 0.96 0.96 1</ambient><diffuse>0.96 0.96 0.96 1</diffuse><specular>0.1 0.1 0.1 1</specular></material>
+      </visual>
+      <visual name="sign_posts">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/sign_posts.stl</uri></mesh></geometry>
+        <material><ambient>0.08 0.08 0.08 1</ambient><diffuse>0.08 0.08 0.08 1</diffuse><specular>0.1 0.1 0.1 1</specular></material>
+      </visual>
+      <visual name="bumps">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/bumps.stl</uri></mesh></geometry>
+        <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.1 0.1 0.1 1</diffuse><specular>0.1 0.1 0.1 1</specular></material>
+      </visual>
+      <visual name="lines">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/lines.stl</uri></mesh></geometry>
+        <material><ambient>0.05 0.05 0.05 1</ambient><diffuse>0.05 0.05 0.05 1</diffuse><specular>0.1 0.1 0.1 1</specular></material>
+      </visual>
+      <visual name="curtain">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/curtain.stl</uri></mesh></geometry>
+        <material><ambient>0.05 0.05 0.05 1</ambient><diffuse>0.05 0.05 0.05 1</diffuse><specular>0.1 0.1 0.1 1</specular></material>
+      </visual>
+      <visual name="frames">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/frames.stl</uri></mesh></geometry>
+        <material><ambient>0.15 0.15 0.16 1</ambient><diffuse>0.15 0.15 0.16 1</diffuse><specular>0.1 0.1 0.1 1</specular></material>
+      </visual>
+      <collision name="ground">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/ground.stl</uri></mesh></geometry>
+      </collision>
+      <collision name="barrier_red">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/barrier_red_collision.stl</uri></mesh></geometry>
+      </collision>
+      <collision name="barrier_white">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/barrier_white_collision.stl</uri></mesh></geometry>
+      </collision>
+      <collision name="ramps">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/ramps.stl</uri></mesh></geometry>
+      </collision>
+      <collision name="gravel">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/gravel.stl</uri></mesh></geometry>
+      </collision>
+      <collision name="water">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/water.stl</uri></mesh></geometry>
+      </collision>
+      <collision name="cones">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/cones_collision.stl</uri></mesh></geometry>
+      </collision>
+      <collision name="sign_posts">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/sign_posts_collision.stl</uri></mesh></geometry>
+      </collision>
+      <collision name="bumps">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/bumps_collision.stl</uri></mesh></geometry>
+      </collision>
+      <collision name="frames">
+        <geometry><mesh><uri>model://teknofest_ika_parkur/meshes/frames_collision.stl</uri></mesh></geometry>
+      </collision>
+    </link>
+  </model>
+</sdf>
