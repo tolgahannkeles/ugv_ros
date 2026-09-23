@@ -24,9 +24,14 @@ struct ImuPayload {
 };
 
 struct GpsPayload {
-    double lat;
-    double lon;
-    uint8_t fix;
+    double lat;       // Enlem (ondalık derece) - 8 bayt
+    double lon;       // Boylam (ondalık derece) - 8 bayt
+    float  alt;       // İrtifa (metre) - 4 bayt
+    float  speed;     // Yer hızı (m/s) - 4 bayt
+    float  course;    // Rota / Course (derece) - 4 bayt
+    float  hdop;      // Yatay hassasiyet çarpanı - 4 bayt
+    uint8_t fix;      // 0: Yok, 1: Fix - 1 bayt
+    uint8_t sats;     // Uydu sayısı - 1 bayt
 };
 #pragma pack(pop)
 

@@ -4,11 +4,13 @@
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/nav_sat_status.hpp>
 #include <sensor_msgs/msg/temperature.hpp>
+#include "geometry_msgs/msg/twist_with_covariance_stamped.hpp"
 
 #include <thread>
 #include <atomic>
 #include <algorithm>
 #include <vector>
+#include <cstring>
 
 #include "tracked_hardware/protocol.hpp"
 #include "tracked_hardware/uart_driver.hpp"
@@ -45,7 +47,8 @@ public:
         pub_imu_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu/data_raw", 10);
         pub_gps_ = this->create_publisher<sensor_msgs::msg::NavSatFix>("/gps/fix", 10);
         pub_temp_ = this->create_publisher<sensor_msgs::msg::Temperature>("/imu/temperature", 10);
-        
+        pub_gps_vel_ = this->create_publisher<geometry_msgs::msg::TwistWithCovarianceStamped>("/gps/fix_velocity", 10);
+
         // CONCURRENCY: Background receiver worker
         running_ = true;
         rx_thread_ = std::thread(&ESP32Bridge::rx_loop, this);
@@ -73,6 +76,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr pub_imu_;
     rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr pub_gps_;
     rclcpp::Publisher<sensor_msgs::msg::Temperature>::SharedPtr pub_temp_;
+    rclcpp::Publisher<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr pub_gps_vel_;
 
     // KINEMATICS: Converts Twist to skid-steer wheel speeds with 0.6 m/s clamp
     void cmd_vel_callback(const geometry_msgs::msg::Twist::SharedPtr msg) {
@@ -132,7 +136,6 @@ private:
         auto stamp = this->now();
 
         if (pkt_id == PKT_ID_IMU && len == sizeof(ImuPayload)) {
-            if (pkt_id == PKT_ID_IMU && len == sizeof(ImuPayload)) {
             ImuPayload data;
             std::memcpy(&data, payload, sizeof(ImuPayload));
 
@@ -152,9 +155,10 @@ private:
             auto temp_msg = sensor_msgs::msg::Temperature();
             temp_msg.header.stamp = stamp;
             temp_msg.header.frame_id = imu_frame_id_;
-            temp_msg.temperature = data.temp; // °C
+            temp_msg.temperature = data.temp;
             temp_msg.variance = 0.0;
             pub_temp_->publish(temp_msg);
+
         } else if (pkt_id == PKT_ID_GPS && len == sizeof(GpsPayload)) {
             GpsPayload data;
             std::memcpy(&data, payload, sizeof(GpsPayload));
@@ -162,13 +166,47 @@ private:
             auto msg = sensor_msgs::msg::NavSatFix();
             msg.header.stamp = stamp;
             msg.header.frame_id = gps_frame_id_;
-            msg.status.status = (data.fix > 0) ? sensor_msgs::msg::NavSatStatus::STATUS_FIX
-                                               : sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX;
+
+            // Fix Durumu
+            if (data.fix > 0) {
+                msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_FIX;
+            } else {
+                msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX;
+            }
             msg.status.service = sensor_msgs::msg::NavSatStatus::SERVICE_GPS;
+
             msg.latitude = data.lat;
             msg.longitude = data.lon;
-            msg.altitude = 0.0;
+            msg.altitude = static_cast<double>(data.alt);
+
+            // Kovaryans Hesabı (HDOP üzerinden yaklaşık doğruluk matrisi)
+            if (data.fix > 0 && data.hdop > 0.0f) {
+                // HDOP * tipik GPS standart sapması (~2.5m)
+                double accuracy = data.hdop * 2.5;
+                double variance = accuracy * accuracy;
+
+                msg.position_covariance[0] = variance;      // Doğu-Batı
+                msg.position_covariance[4] = variance;      // Kuzey-Güney
+                msg.position_covariance[8] = variance * 4.0; // İrtifa (genelde 2x hata payı)
+                msg.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_APPROXIMATED;
+            } else {
+                msg.position_covariance[0] = 0.0;
+                msg.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
+            }
+
             pub_gps_->publish(msg);
+
+            // GPS Hız Yayını
+            if (data.fix > 0) {
+                auto vel_msg = geometry_msgs::msg::TwistWithCovarianceStamped();
+                vel_msg.header.stamp = stamp;
+                vel_msg.header.frame_id = "base_link"; // Robotun ileri ekseni
+                vel_msg.twist.twist.linear.x = static_cast<double>(data.speed); // m/s
+                
+                // Hız varyansı (GPS hız hassasiyeti genelde ~0.1 m/s'dir)
+                vel_msg.twist.covariance[0] = 0.05; // vx varyansı
+                pub_gps_vel_->publish(vel_msg);
+            }
         }
     }
 };
