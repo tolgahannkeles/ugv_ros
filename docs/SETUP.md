@@ -7,7 +7,7 @@ Bu projenin çalıştığı iki makinenin kurulumu, neden böyle kurulduğu ve k
 | Donanım | Windows 11 + WSL2 | Raspberry Pi 5 + ESP32 (UART) |
 | İşletim sistemi | Ubuntu 24.04 (WSL) | Ubuntu 24.04 arm64 |
 | Workspace | `~/ugv_ws` (`src` → repodaki `src/`'ye symlink) | Repo kökü: `~/ugv_ros` |
-| Çalıştırma | `ros2 launch tracked_gazebo sim.launch.py` | `ros2 launch tracked_bringup robot.launch.py` |
+| Çalıştırma | `ros2 launch ugv_gazebo sim.launch.py` | `ros2 launch ugv_bringup robot.launch.py` |
 | IP (yerel ağ) | 192.168.1.105 | 192.168.1.155 |
 
 ## Hızlı kurulum
@@ -30,7 +30,7 @@ Betikten sonra **yeni bir terminal açın**. Eski terminaller eski ortam değiş
 Kod değiştikten sonra sadece derlemek yeterli:
 ```bash
 cd ~/ugv_ws && colcon build                                                   # PC
-cd ~/ugv_ros && colcon build --packages-up-to tracked_bringup --parallel-workers 2   # Pi
+cd ~/ugv_ros && colcon build --packages-up-to ugv_bringup --parallel-workers 2   # Pi
 ```
 
 ## Ne kuruluyor, neden
@@ -52,7 +52,7 @@ ROS 2 Jazzy'nin kendisi betiklerin dışında kurulur ([resmi kurulum](https://d
 
 `ros2-control-cmake` doğrudan kullanılmaz, ama aşağıdaki overlay onsuz derlenmez. Pi'deki ros2_control kurulumuyla birlikte gelmedi.
 
-`rosdep` yerine doğrudan apt kullanılır. `rosdep install` Gazebo'yu da (`tracked_gazebo`) çekmeye çalışır ve `--packages-up-to` seçeneği yoktur.
+`rosdep` yerine doğrudan apt kullanılır. `rosdep install` Gazebo'yu da (`ugv_gazebo`) çekmeye çalışır ve `--packages-up-to` seçeneği yoktur.
 
 ### `diff_drive_controller` overlay'i (`~/ugv_deps_ws`)
 
@@ -69,7 +69,7 @@ apt'deki `ros-jazzy-diff-drive-controller` **4.42.1**, komut gelmediği sürece 
 ### Workspace düzeni
 
 - **PC:** Kod Windows tarafında (`C:\...\ugv_ros`), derleme Linux diskinde (`~/ugv_ws`). `~/ugv_ws/src` repodaki `src/`'ye symlink'tir. `/mnt/c` altında derlemek çok yavaştır ve colcon'un symlink/izin işlemleri orada bozulur.
-- **Pi:** Repo kökü aynı zamanda workspace'tir (`~/ugv_ros/{src,build,install,log}`). Pi'de bellek sınırlı olduğu için `--parallel-workers 2` ile ve sadece robot paketleri (`--packages-up-to tracked_bringup`) derlenir.
+- **Pi:** Repo kökü aynı zamanda workspace'tir (`~/ugv_ros/{src,build,install,log}`). Pi'de bellek sınırlı olduğu için `--parallel-workers 2` ile ve sadece robot paketleri (`--packages-up-to ugv_bringup`) derlenir.
 
 ### `~/.bashrc`
 
@@ -132,7 +132,7 @@ Workspace'in `install/setup.bash` dosyası overlay'i ve `/opt/ros`'u zincirleme 
 | Belirti | Sebep | Çözüm |
 |---|---|---|
 | `ros2 topic list` hiçbir şey dönmüyor (`/rosout` bile yok) | Hiç node çalışmıyor ya da `ros2 daemon` takılmış | Launch'ın çalıştığından emin olun; `ros2 daemon stop` |
-| Değişiklikler etkisiz, eski davranış (ör. robot joystick'le hareket etmiyor) | Terminal eski ya da yanlış bir `install/` source etmiş (ör. `/mnt/c/.../install`) | Yeni terminal açın; `ros2 pkg prefix tracked_gazebo` doğru workspace'i göstermeli |
+| Değişiklikler etkisiz, eski davranış (ör. robot joystick'le hareket etmiyor) | Terminal eski ya da yanlış bir `install/` source etmiş (ör. `/mnt/c/.../install`) | Yeni terminal açın; `ros2 pkg prefix ugv_gazebo` doğru workspace'i göstermeli |
 | `Velocity command timed out. Braking.` her saniye | Overlay yüklü değil, apt'deki 4.42.1 çalışıyor | `ros2 pkg prefix diff_drive_controller` → `ugv_deps_ws` olmalı; değilse overlay'i kurup workspace'i overlay source'luyken yeniden derleyin, yeni terminal açın |
 | Aynı uyarı joystick her bırakıldığında bir kez | Normal: komut akışı bitti, controller fren yaptı | Bir şey yapmaya gerek yok |
 | `Could not find ... hardware_interfaceConfig.cmake` | ros2_control kurulu değil | `sudo apt install ros-jazzy-ros2-control ros-jazzy-ros2-controllers` |

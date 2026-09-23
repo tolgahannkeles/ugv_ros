@@ -25,7 +25,7 @@ apt_install "${ROBOT_APT_PACKAGES[@]}"
 build_deps_overlay
 
 # Pi'de bellek sınırlı: simülasyon paketleri atlanır, paralel iş sayısı düşük tutulur
-build_workspace "$REPO_ROOT" --packages-up-to tracked_bringup --parallel-workers 2
+build_workspace "$REPO_ROOT" --packages-up-to ugv_bringup --parallel-workers 2
 
 log "Donanim kontrolleri"
 if id -nG "$USER" | grep -qw dialout; then
@@ -60,4 +60,4 @@ export CYCLONEDDS_URI=file://\$HOME/cyclonedds.xml
 [ -f $REPO_ROOT/install/setup.bash ] && source $REPO_ROOT/install/setup.bash"
 
 log "Tamam. Yeni bir terminal acip (paletler havadayken ilk deneme):"
-echo "  ros2 launch tracked_bringup robot.launch.py"
+echo "  ros2 launch ugv_bringup robot.launch.py"

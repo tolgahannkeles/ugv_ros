@@ -1,0 +1,11 @@
+# Gerçek robota özel controller ayarları.
+# ugv_control/config/controllers.yaml üstüne yazılır; sadece farklılıklar buradadır.
+diff_drive_controller:
+  ros__parameters:
+    # Skid-steer kayma kompanzasyonu (palet aralığı 0.22 m ortak config'te)
+    # (eski esp32_bridge: track_width 0.22 m x slip_factor 1.25 = 0.275 m efektif)
+    wheel_separation_multiplier: 1.25
+
+    # ESP32 enkoder göndermiyor: odometri komut tabanlı (ugv_hardware/ESP32System)
+    open_loop: true
+    position_feedback: false

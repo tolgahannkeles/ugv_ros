@@ -1,0 +1,56 @@
+# ros2_control controller'ları. Simülasyonda (gz_ros2_control) ve gerçek
+# donanımda aynı dosya kullanılır; sadece URDF'teki hardware plugin'i değişir.
+controller_manager:
+  ros__parameters:
+    update_rate: 50  # Hz
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    diff_drive_controller:
+      type: diff_drive_controller/DiffDriveController
+
+diff_drive_controller:
+  ros__parameters:
+    # Tahrik her yanda arka dişlide; ön/orta tekerler palet üzerinden onu takip eder
+    left_wheel_names: ["left_sprocket_joint"]
+    right_wheel_names: ["right_sprocket_joint"]
+
+    # ugv_description/urdf/ugv.urdf.xacro ile aynı olmalı
+    wheel_separation: 0.22   # palet merkezleri arası
+    wheel_radius: 0.065
+    # Skid-steer kayma kompanzasyonu: dönerken paletler yanal kaydığı için efektif
+    # palet aralığı geometrikten büyüktür (gerçek robot: controllers_real.yaml)
+    # Simülasyonda ölçüldü (yerinde dönüş, gerçek yaw / odometri yaw ~ 1.0 olacak şekilde)
+    wheel_separation_multiplier: 1.51
+    left_wheel_radius_multiplier: 1.0
+    right_wheel_radius_multiplier: 1.0
+
+    odom_frame_id: odom
+    base_frame_id: base_footprint
+    # odom -> base_footprint TF'ini lokal EKF yayınlar (ugv_localization)
+    enable_odom_tf: false
+    open_loop: false
+    position_feedback: true
+    publish_rate: 50.0
+
+    # Kullanılmayan eksenler (z, roll, pitch) için yüksek belirsizlik
+    pose_covariance_diagonal: [0.001, 0.001, 1000000.0, 1000000.0, 1000000.0, 0.03]
+    twist_covariance_diagonal: [0.001, 0.001, 1000000.0, 1000000.0, 1000000.0, 0.03]
+
+    # Komut gelmezse robot durur (güvenlik)
+    cmd_vel_timeout: 0.5
+
+    linear.x.has_velocity_limits: true
+    linear.x.max_velocity: 0.6
+    linear.x.min_velocity: -0.6
+    linear.x.has_acceleration_limits: true
+    linear.x.max_acceleration: 1.0
+    linear.x.min_acceleration: -1.0
+
+    angular.z.has_velocity_limits: true
+    angular.z.max_velocity: 2.0
+    angular.z.min_velocity: -2.0
+    angular.z.has_acceleration_limits: true
+    angular.z.max_acceleration: 4.0
+    angular.z.min_acceleration: -4.0

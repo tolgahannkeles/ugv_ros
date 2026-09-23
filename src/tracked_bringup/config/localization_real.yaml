@@ -1,9 +1,0 @@
-# Gerçek robota özel localization ayarları.
-# tracked_localization/config/ekf.yaml üstüne yazılır; sadece farklılıklar buradadır.
-#
-# Gerçek IMU'da manyetometre yok: Madgwick yaw'ı mutlak değil, açılıştaki yöne göredir.
-# navsat_transform bu yüzden robotun açılışta KUZEYE baktığını varsayar (yaw_offset = pi/2).
-navsat_transform:
-  ros__parameters:
-    magnetic_declination_radians: 0.10
-    yaw_offset: 1.5707963

@@ -16,7 +16,7 @@ Gereksinim (tek seferlik, repo dışında):
 
 Kullanım:
   ~/.venvs/cad/bin/python tools/parkur_to_gazebo.py teknofest_parkur/<dosya>.STEP \\
-      src/tracked_gazebo/models/teknofest_ika_parkur
+      src/ugv_gazebo/models/teknofest_ika_parkur
 """
 import argparse
 import os
@@ -180,7 +180,7 @@ def build(parts, out_dir):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('step', help='Parkur STEP dosyası')
-    ap.add_argument('out_dir', help='Çıktı model klasörü (ör. src/tracked_gazebo/models/teknofest_ika_parkur)')
+    ap.add_argument('out_dir', help='Çıktı model klasörü (ör. src/ugv_gazebo/models/teknofest_ika_parkur)')
     ap.add_argument('--deflection', type=float, default=10.0, help='Mesh hassasiyeti (mm, varsayılan 10)')
     args = ap.parse_args()
 

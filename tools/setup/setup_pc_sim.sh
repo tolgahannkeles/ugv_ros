@@ -53,4 +53,4 @@ export LIBGL_ALWAYS_SOFTWARE=1
 [ -f $WS/install/setup.bash ] && source $WS/install/setup.bash"
 
 log "Tamam. Yeni bir terminal acip calistirin:"
-echo "  ros2 launch tracked_gazebo sim.launch.py"
+echo "  ros2 launch ugv_gazebo sim.launch.py"
