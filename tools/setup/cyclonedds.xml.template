@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- ~/cyclonedds.xml olarak kopyalanır (tools/setup/*.sh). PEER_ADDRESS: karşı makinenin IP'si
+     (PC'de robotun, robotta PC'nin). Birden fazla makine için <Peer> satırı ekleyin. -->
+<CycloneDDS xmlns="https://cdds.io/config">
+    <Domain id="any">
+        <Discovery>
+            <Peers>
+                <Peer address="PEER_ADDRESS"/>
+            </Peers>
+        </Discovery>
+    </Domain>
+</CycloneDDS>
