@@ -107,7 +107,7 @@ Workspace'in `install/setup.bash` dosyası overlay'i ve `/opt/ros`'u zincirleme 
 | Araç | Kurulum | Ne için |
 |---|---|---|
 | Parkur dönüştürücü ([tools/parkur_to_gazebo.py](../tools/parkur_to_gazebo.py)) | `python3 -m venv ~/.venvs/cad && ~/.venvs/cad/bin/pip install cadquery-ocp trimesh rtree scipy` | TEKNOFEST STEP → Gazebo modeli |
-| Engel dedektörü ([tools/pc_obstacle_detector.py](../tools/pc_obstacle_detector.py)) | `pip install ultralytics opencv-python` (PC'de) | Otonom Destek (`/obstacle_zones`) |
+| Engel dedektörü ([tools/pc_obstacle_detector.py](../tools/pc_obstacle_detector.py)) | `pip install ultralytics opencv-python` (ROS'un çalıştığı cihazda) | Otonom Destek (`/obstacle_zones`) |
 | `depth_node` (kapalı) | `pip install onnxruntime` | ONNX derinlik tahmini |
 
 ## Test edilmiş sürümler

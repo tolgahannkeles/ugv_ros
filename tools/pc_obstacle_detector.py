@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 import cv2
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from sensor_msgs.msg import Image, CompressedImage
 from std_msgs.msg import Int32MultiArray
@@ -93,7 +94,8 @@ class PcObstacleDetector(Node):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', default='yolo26n-depth.pt')
-    parser.add_argument('--image-topic', default='/camera/image_raw/compressed')
+    # Aynı cihazda çalışır: ağ aktarımı olmadığı için sıkıştırılmamış görüntü (sim ve camera_ros ikisi de yayınlar)
+    parser.add_argument('--image-topic', default='/camera/image_raw')
     parser.add_argument('--imgsz', type=int, default=768)
     parser.add_argument('--near-distance', type=float, default=0.3,
                         help='Bu mesafeden (metre) daha yakin bolgeler engel sayilir')
@@ -110,9 +112,11 @@ def main():
     node = PcObstacleDetector(args)
     try:
         rclpy.spin(node)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        rclpy.try_shutdown()
         cv2.destroyAllWindows()
 
 

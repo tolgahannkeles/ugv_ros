@@ -19,7 +19,7 @@ The real robot and the simulation share every layer except the ros2_control hard
                 └─────────┬────────────┘
                           │  /cmd_vel_teleop_raw (Twist)
                 ┌─────────▼────────────┐
-                │  collision_guard      │◄── /obstacle_zones (PC, YOLO) + /assist_enabled (web)
+                │  collision_guard      │◄── /obstacle_zones (YOLO) + /assist_enabled (web)
                 │ (ugv_intelligence)    │
                 └─────────┬────────────┘
                           │ /cmd_vel_teleop (TwistStamped)
@@ -92,13 +92,13 @@ Hosts two separate approaches to camera-based environment awareness.
 
 **`collision_guard` (active): Driver-Assisted Collision Avoidance**
 
-This is not full autonomous navigation. It is a safety filter that prevents collisions with nearby obstacles while driving manually via joystick. It requires no extra hardware (IMU/GPS/lidar); distance estimation is done by **YOLO26's native monocular depth estimation (`yolo26n-depth.pt`)** running on a separate **PC** that can reach the robot's camera over the ROS network. It produces an absolute distance in meters for every pixel.
+This is not full autonomous navigation. It is a safety filter that prevents collisions with nearby obstacles while driving manually via joystick. It requires no extra hardware (IMU/GPS/lidar); distance estimation is done by **YOLO26's native monocular depth estimation (`yolo26n-depth.pt`)** running on the same device as the rest of the stack (the PC in simulation, the robot itself on hardware). It produces an absolute distance in meters for every pixel.
 
 - Joystick/keyboard commands from the web UI go to the `/cmd_vel_teleop_raw` topic.
-- The `collision_guard` node listens to this raw command. If the web UI's **"Autonomous Assist"** toggle is on (`/assist_enabled`, `std_msgs/Bool`) and the `/obstacle_zones` signal from the PC (`std_msgs/Int32MultiArray`, `[left, center, right]`, each 0/1) reports an obstacle in a zone the robot is driving into, it **cuts forward motion** (turning/reverse remain free) and publishes the adjusted command to `/cmd_vel_teleop`. With `use_stamped: true` (robot and simulation), it publishes `TwistStamped` for `twist_mux` and `diff_drive_controller`.
-- If `/obstacle_zones` data is older than `obstacle_timeout_sec` (default 1.0 s), it is treated as if there's no obstacle, so if the PC/YOLO side drops off the network, joystick control continues uninterrupted.
+- The `collision_guard` node listens to this raw command. If the web UI's **"Autonomous Assist"** toggle is on (`/assist_enabled`, `std_msgs/Bool`) and the `/obstacle_zones` signal from the detector (`std_msgs/Int32MultiArray`, `[left, center, right]`, each 0/1) reports an obstacle in a zone the robot is driving into, it **cuts forward motion** (turning/reverse remain free) and publishes the adjusted command to `/cmd_vel_teleop`. With `use_stamped: true` (robot and simulation), it publishes `TwistStamped` for `twist_mux` and `diff_drive_controller`.
+- If `/obstacle_zones` data is older than `obstacle_timeout_sec` (default 1.0 s), it is treated as if there's no obstacle, so if the YOLO detector stops or is not running, joystick control continues uninterrupted.
 - The current intervention state is published as `/assist/blocking` (`std_msgs/Bool`) and shown in the web UI as a warning banner over the camera view.
-- Example depth→ROS bridge script to run on the PC: [tools/pc_obstacle_detector.py](tools/pc_obstacle_detector.py) (not part of the colcon workspace; it runs on a separate machine). It splits the depth map into left/center/right zones and compares the nearest (low-percentile) distance in each zone against the `--near-distance` threshold (default 1.2 m).
+- Example depth→ROS bridge script: [tools/pc_obstacle_detector.py](tools/pc_obstacle_detector.py) (not part of the colcon workspace; run it as a plain Python script on the same device). It reads `/camera/image_raw` by default. It splits the depth map into left/center/right zones and compares the nearest (low-percentile) distance in each zone against the `--near-distance` threshold (default 1.2 m).
 - By default (`--show`, disable with `--no-show`) the script overlays each zone's obstacle status and estimated distance on the camera feed and displays it live in an OpenCV window, which is useful for visually tuning the threshold.
 
 **`depth_node` / `avoidance_node` (code ready, disabled): Fully Autonomous Avoidance**
@@ -135,7 +135,7 @@ Serves the browser-based **"UGV Komuta Paneli"** operator control unit (Turkish 
 - ROS 2 packages: `ros2_control`, `ros2_controllers` (`diff_drive_controller`, `joint_state_broadcaster`), `twist_mux`, `robot_localization`, `imu_filter_madgwick`, `web_video_server`, `rosbridge_server`, `xacro`; on the robot also `camera_ros`; for simulation also `ros_gz`, `gz_ros2_control`
 - Python 3, `onnxruntime`, `cv_bridge` (for `ugv_intelligence`)
 - `ugv_hardware` builds on Linux only (POSIX `termios`).
-- For **Autonomous Assist**, a separate PC on the same ROS network (same `ROS_DOMAIN_ID`) needs `ultralytics` (YOLO26 depth) and `opencv-python`; see [tools/pc_obstacle_detector.py](tools/pc_obstacle_detector.py). Images are decoded directly with numpy without requiring `cv_bridge`; either a raw (`sensor_msgs/Image`) or compressed (`sensor_msgs/CompressedImage`) camera topic can be used.
+- For **Autonomous Assist**, the same device needs `ultralytics` (YOLO26 depth) and `opencv-python`; see [tools/pc_obstacle_detector.py](tools/pc_obstacle_detector.py). Images are decoded directly with numpy without requiring `cv_bridge`; either a raw (`sensor_msgs/Image`) or compressed (`sensor_msgs/CompressedImage`) camera topic can be used.
 
 ```bash
 sudo apt install python3-colcon-common-extensions \
@@ -166,7 +166,7 @@ ros2 launch ugv_bringup robot.launch.py
 ros2 launch ugv_bringup robot.launch.py use_mock_hardware:=true use_camera:=false
 ```
 
-Access the web UI at `http://<robot-ip>:8000`. For Autonomous Assist, run `python3 tools/pc_obstacle_detector.py` on a PC on the same ROS network, then enable the **"Autonomous Assist"** toggle in the web UI.
+Access the web UI at `http://<robot-ip>:8000`. For Autonomous Assist, run `python3 tools/pc_obstacle_detector.py` on the robot, then enable the **"Autonomous Assist"** toggle in the web UI.
 
 The controller manager logs a warning if it cannot use FIFO real-time scheduling. On the Pi, add the user to a group with real-time privileges (see the [ros2_control docs](https://control.ros.org/jazzy/doc/ros2_control/controller_manager/doc/userdoc.html#determinism)).
 
