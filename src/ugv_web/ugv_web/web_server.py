@@ -9,6 +9,13 @@ from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 import threading
 
+
+class ThreadingHTTPServer(socketserver.ThreadingTCPServer):
+    # Her istek ayrı iş parçacığında: tarayıcının boşta açık tuttuğu (preconnect/keep-alive)
+    # tek bir bağlantı, tek iş parçacıklı sunucuyu kilitleyip sayfanın açılmasını engelliyordu
+    daemon_threads = True
+    allow_reuse_address = True
+
 class WebServerNode(Node):
     def __init__(self):
         super().__init__('web_server_node')
@@ -22,9 +29,9 @@ class WebServerNode(Node):
         handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=www_dir)
 
         self.get_logger().info(f"Web Arayuzu baslatiliyor: http://0.0.0.0:{port} (Dizin: {www_dir})")
-        
+
         # HTTP sunucusunu bloke etmemesi için ayrı iş parçacığında açıyoruz
-        self.httpd = socketserver.TCPServer(("", port), handler)
+        self.httpd = ThreadingHTTPServer(("", port), handler)
         self.server_thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
         self.server_thread.start()
 
