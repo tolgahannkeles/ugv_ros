@@ -3,19 +3,16 @@
 # Tekrar çalıştırmak güvenlidir. Ayrıntılar: docs/SETUP.md
 #
 # Kullanım (WSL içinden, repo nerede olursa olsun):
-#   bash tools/setup/setup_pc_sim.sh [--peer <robot-ip>] [--ws <workspace>]
+#   bash tools/setup/setup_pc_sim.sh [--ws <workspace>]
 #
-#   --peer  CycloneDDS için robotun IP'si (varsayılan 192.168.1.155)
 #   --ws    Linux dosya sistemindeki workspace (varsayılan ~/ugv_ws); src/ buradan
 #           repodaki src/ klasörüne symlink olur, derleme çıktıları Linux diskinde kalır.
 
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-PEER=192.168.1.155
 WS="$HOME/ugv_ws"
 while [ $# -gt 0 ]; do
   case "$1" in
-    --peer) PEER="$2"; shift 2 ;;
     --ws)   WS="$2"; shift 2 ;;
     *) die "bilinmeyen arguman: $1" ;;
   esac
@@ -42,11 +39,8 @@ else
 fi
 build_workspace "$WS"
 
-write_cyclonedds_config "$PEER"
 write_bashrc_block "source /opt/ros/jazzy/setup.bash
 export ROS_DOMAIN_ID=42
-export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-export CYCLONEDDS_URI=file://\$HOME/cyclonedds.xml
 # WSL: GPU'suz yazılım render (Gazebo sensörleri ve arayüzü)
 export LIBGL_ALWAYS_SOFTWARE=1
 # Workspace (overlay'i ve /opt/ros'u zincirleme yükler)

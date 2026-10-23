@@ -3,22 +3,14 @@
 # Tekrar çalıştırmak güvenlidir. Ayrıntılar: docs/SETUP.md
 #
 # Kullanım (Pi üzerinde, repo kökünden):
-#   bash tools/setup/setup_robot.sh [--peer <pc-ip>]
-#
-#   --peer  CycloneDDS için geliştirme PC'sinin IP'si (varsayılan 192.168.1.105)
+#   bash tools/setup/setup_robot.sh
 #
 # Repo kökü aynı zamanda colcon workspace'idir (~/ugv_ros/{src,build,install}).
 # camera_ros bu betikle kurulmaz: Pi 5 (RP1-CFE) için Raspberry Pi libcamera'sı gerekir.
 
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-PEER=192.168.1.105
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --peer) PEER="$2"; shift 2 ;;
-    *) die "bilinmeyen arguman: $1" ;;
-  esac
-done
+[ $# -eq 0 ] || die "bilinmeyen arguman: $1"
 
 check_os
 apt_install "${ROBOT_APT_PACKAGES[@]}"
@@ -51,11 +43,8 @@ if [ ! -f /etc/security/limits.d/ros2.conf ]; then
   echo "rtprio izni eklendi (yeniden oturum acinca gecerli)"
 fi
 
-write_cyclonedds_config "$PEER"
 write_bashrc_block "source /opt/ros/jazzy/setup.bash
 export ROS_DOMAIN_ID=42
-export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-export CYCLONEDDS_URI=file://\$HOME/cyclonedds.xml
 # Workspace (overlay'i ve /opt/ros'u zincirleme yükler)
 [ -f $REPO_ROOT/install/setup.bash ] && source $REPO_ROOT/install/setup.bash"
 

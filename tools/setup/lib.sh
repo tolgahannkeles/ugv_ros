@@ -11,7 +11,6 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # Hem robotta hem simülasyonda gereken ROS paketleri
 ROBOT_APT_PACKAGES=(
   python3-colcon-common-extensions python3-rosdep git
-  ros-jazzy-rmw-cyclonedds-cpp
   ros-jazzy-ros2-control ros-jazzy-ros2-controllers ros-jazzy-ros2controlcli
   ros-jazzy-ros2-control-cmake
   ros-jazzy-twist-mux ros-jazzy-robot-localization ros-jazzy-imu-filter-madgwick
@@ -95,15 +94,4 @@ write_bashrc_block() {
   body="$(cat ~/.bashrc)"
   printf '%s\n\n%s\n%s\n%s\n' "$body" "$begin" "$1" "$end" > ~/.bashrc
   echo "$1"
-}
-
-# CycloneDDS: aynı ağdaki PC ve robotun birbirini bulması için unicast peer listesi
-write_cyclonedds_config() {
-  local peer="$1" dest="$HOME/cyclonedds.xml"
-  if [ -f "$dest" ]; then
-    warn "$dest zaten var, dokunulmadi (peer'ler: $(grep -o 'address="[^"]*"' "$dest" | tr '\n' ' '))"
-    return
-  fi
-  log "$dest olusturuluyor (peer: $peer)"
-  sed "s|PEER_ADDRESS|$peer|" "$REPO_ROOT/tools/setup/cyclonedds.xml.template" > "$dest"
 }

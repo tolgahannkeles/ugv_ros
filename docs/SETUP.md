@@ -16,13 +16,13 @@ Her iki betik de tekrar çalıştırılabilir: eksikleri kurar, workspace'i derl
 
 **PC (WSL içinden):**
 ```bash
-bash /mnt/c/Users/<kullanici>/Desktop/projects/ugv_ros/tools/setup/setup_pc_sim.sh --peer 192.168.1.155
+bash /mnt/c/Users/<kullanici>/Desktop/projects/ugv_ros/tools/setup/setup_pc_sim.sh
 ```
 
 **Robot (Pi'de, repo kökünden):**
 ```bash
 cd ~/ugv_ros && git pull
-bash tools/setup/setup_robot.sh --peer 192.168.1.105
+bash tools/setup/setup_robot.sh
 ```
 
 Betikten sonra **yeni bir terminal açın**. Eski terminaller eski ortam değişkenlerini tutar (bkz. [Sorunlar](#sorunlar-ve-çözümleri)).
@@ -42,7 +42,6 @@ ROS 2 Jazzy'nin kendisi betiklerin dışında kurulur ([resmi kurulum](https://d
 | Grup | Paketler | Nerede |
 |---|---|---|
 | Derleme | `python3-colcon-common-extensions`, `python3-rosdep`, `git` | ikisi |
-| İletişim | `ros-jazzy-rmw-cyclonedds-cpp` | ikisi |
 | Kontrol | `ros2-control`, `ros2-controllers`, `ros2controlcli`, `ros2-control-cmake`, `twist-mux` | ikisi |
 | Konum | `robot-localization`, `imu-filter-madgwick` | ikisi |
 | Model | `xacro`, `robot-state-publisher` | ikisi |
@@ -78,18 +77,16 @@ Betikler `# >>> ugv_ros (tools/setup) >>>` işaretli bir blok yazar ve tekrar ç
 ```bash
 source /opt/ros/jazzy/setup.bash
 export ROS_DOMAIN_ID=42
-export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-export CYCLONEDDS_URI=file://$HOME/cyclonedds.xml
 export LIBGL_ALWAYS_SOFTWARE=1          # sadece PC (WSL'de GPU'suz render)
 [ -f <workspace>/install/setup.bash ] && source <workspace>/install/setup.bash
 ```
 
 Workspace'in `install/setup.bash` dosyası overlay'i ve `/opt/ros`'u zincirleme yükler; ayrıca source etmeye gerek yoktur.
 
-### Ağ: CycloneDDS
+### Ağ
 
-- İki makinede de `ROS_DOMAIN_ID=42` ve `rmw_cyclonedds_cpp` aynı olmalı.
-- `~/cyclonedds.xml`, karşı makineyi unicast peer olarak listeler (PC'de robotun, robotta PC'nin IP'si). Şablon: [tools/setup/cyclonedds.xml.template](../tools/setup/cyclonedds.xml.template). Dosya varsa betik ona dokunmaz.
+- ROS 2'nin varsayılan DDS'i (Fast DDS) kullanılır; ayrı ayar dosyası yoktur. Tüm node'lar aynı cihazda çalışır (simülasyonda PC, gerçek araçta Pi); YOLO engel dedektörü de dahil.
+- Web arayüzü DDS kullanmaz: tarayıcı rosbridge (WebSocket, 9090) ve web_video_server (HTTP, 8080) üzerinden bağlanır, bu yüzden aracı başka bir cihazın tarayıcısından da kullanabilirsiniz.
 - WSL `mirrored` ağ modunda çalışır, yani WSL, Windows'un IP'sini kullanır. Windows'ta `C:\Users\<kullanici>\.wslconfig`:
   ```ini
   [wsl2]
@@ -125,7 +122,6 @@ Workspace'in `install/setup.bash` dosyası overlay'i ve `/opt/ros`'u zincirleme 
 | gz_ros2_control | 1.2.20 |
 | robot_localization | 3.8.3 |
 | twist_mux | 4.5.0 |
-| rmw_cyclonedds_cpp | 2.2.4 |
 
 ## Sorunlar ve çözümleri
 
@@ -139,7 +135,7 @@ Workspace'in `install/setup.bash` dosyası overlay'i ve `/opt/ros`'u zincirleme 
 | Overlay derlerken `ros2_control_cmakeConfig.cmake` bulunamadı | Upstream dal bu pakete ihtiyaç duyuyor | `sudo apt install ros-jazzy-ros2-control-cmake` |
 | `rosdep: error: no such option: --packages-up-to` | O seçenek colcon'a ait | Betikleri ya da doğrudan apt'yi kullanın |
 | `colcon: command not found` | colcon pip ile `~/.local/bin`'e kurulmuş, PATH'te değil | `sudo apt install python3-colcon-common-extensions` |
-| `rmw_create_node: failed to create domain` / `failed to bind to ANY:17900` | Aynı domain'de (42) çakışan başka bir ROS süreci ya da takılı kalmış bir süreç | Diğer launch'ları kapatın, `ros2 daemon stop`; `ps aux \| grep -E "ros2\|gz sim"` |
+| `rmw_create_node: failed to create domain` | Aynı domain'de (42) çakışan başka bir ROS süreci ya da takılı kalmış bir süreç | Diğer launch'ları kapatın, `ros2 daemon stop`; `ps aux \| grep -E "ros2\|gz sim"` |
 | Gazebo: `Unable to resolve uri[model://...] ... does not contain a model.config` | Çalışma dizininde aynı adlı bir klasör var (Gazebo önce oraya bakar) | Model adı `teknofest_ika_parkur` olarak ayrıştırıldı; yeni modellerde de benzersiz ad kullanın |
 | Gazebo: `does not support mimic constraints` | Fizik motoru mimic desteklemiyor; tekerleri gz_ros2_control bağlıyor | Zararsız |
 | Kapanışta `process has died` / `RCLError ... context is not valid` | Ctrl+C sırasında rclpy kapanış yarışı | Zararsız |
