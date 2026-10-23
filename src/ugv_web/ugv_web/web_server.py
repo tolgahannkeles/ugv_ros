@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import functools
 import http.server
+import json
 import socketserver
 import os
+import yaml
 from ament_index_python.packages import get_package_share_directory
 import rclpy
 from rclpy.executors import ExternalShutdownException
@@ -18,6 +20,20 @@ class ThreadingHTTPServer(socketserver.ThreadingTCPServer):
 
 
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
+    # Araç tanımının sürüş bölümü (ugv_description/config/vehicle.yaml): arayüz hız
+    # sınırlarını /vehicle.json'dan alır
+    vehicle_json = b'{}'
+
+    def do_GET(self):
+        if self.path.split('?')[0] == '/vehicle.json':
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(self.vehicle_json)))
+            self.end_headers()
+            self.wfile.write(self.vehicle_json)
+            return
+        super().do_GET()
+
     # Tarayıcı her açılışta dosyanın değişip değişmediğini sorsun: yoksa güncellenen
     # JS modülleri (ör. config.js) eski haliyle önbellekten yükleniyordu. Değişmediyse
     # sunucu 304 döner, dosya yeniden indirilmez.
@@ -35,6 +51,11 @@ class WebServerNode(Node):
         # Kurulum dizinindeki www klasörünü bul
         pkg_share = get_package_share_directory('ugv_web')
         www_dir = os.path.join(pkg_share, 'www')
+
+        vehicle_yaml = os.path.join(
+            get_package_share_directory('ugv_description'), 'config', 'vehicle.yaml')
+        with open(vehicle_yaml, encoding='utf-8') as f:
+            NoCacheHandler.vehicle_json = json.dumps(yaml.safe_load(f)['drive']).encode()
 
         handler = functools.partial(NoCacheHandler, directory=www_dir)
 

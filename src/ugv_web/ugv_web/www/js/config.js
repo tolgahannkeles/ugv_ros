@@ -35,14 +35,24 @@ export const MAP_CENTER = [39.92077, 32.85411];
 export const MAP_ZOOM = 16;
 export const MAP_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-// Motor çalışma eşikleri (Linear: 0.40 - 0.60 m/s, Angular: 3.00 - 5.00 rad/s)
+// Motor çalışma eşikleri (ölü bölgeyi aşan en küçük komut: 0.40 m/s, 3.00 rad/s).
+// Üst sınırlar (maxLin, maxAng) açılışta araç tanımından gelir: /vehicle.json
+// (ugv_description/config/vehicle.yaml, drive bölümü; main.js). Alt eşik üst sınırı
+// aşıyorsa ona çekilir. Aşağıdaki üst sınırlar sadece vehicle.json okunamazsa geçerli.
 export const VELOCITY = {
   minLin: 0.40,
-  maxLin: 0.60,
+  maxLin: 0.40,
   minAng: 3.00,
-  maxAng: 5.00,
+  maxAng: 3.00,
   deadzone: 0.05,
 };
+
+export function applyVehicleLimits(drive) {
+  VELOCITY.maxLin = drive.max_linear_velocity;
+  VELOCITY.maxAng = drive.max_angular_velocity;
+  VELOCITY.minLin = Math.min(VELOCITY.minLin, VELOCITY.maxLin);
+  VELOCITY.minAng = Math.min(VELOCITY.minAng, VELOCITY.maxAng);
+}
 
 export const DEFAULT_POWER = 100;
 export const TELEOP_PERIOD_MS = 50;
