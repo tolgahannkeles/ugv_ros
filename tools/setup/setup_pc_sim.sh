@@ -41,8 +41,9 @@ build_workspace "$WS"
 
 write_bashrc_block "source /opt/ros/jazzy/setup.bash
 export ROS_DOMAIN_ID=42
-# WSL: GPU'suz yazılım render (Gazebo sensörleri ve arayüzü)
-export LIBGL_ALWAYS_SOFTWARE=1
+# WSL: Gazebo render'ı NVIDIA GPU üzerinden (Mesa d3d12); GPU yoksa LIBGL_ALWAYS_SOFTWARE=1
+export GALLIUM_DRIVER=d3d12
+export MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA
 # Workspace (overlay'i ve /opt/ros'u zincirleme yükler)
 [ -f $WS/install/setup.bash ] && source $WS/install/setup.bash"
 

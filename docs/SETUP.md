@@ -77,7 +77,8 @@ Betikler `# >>> ugv_ros (tools/setup) >>>` işaretli bir blok yazar ve tekrar ç
 ```bash
 source /opt/ros/jazzy/setup.bash
 export ROS_DOMAIN_ID=42
-export LIBGL_ALWAYS_SOFTWARE=1          # sadece PC (WSL'de GPU'suz render)
+export GALLIUM_DRIVER=d3d12                    # sadece PC: WSL'de Gazebo render'ı GPU'da
+export MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA
 [ -f <workspace>/install/setup.bash ] && source <workspace>/install/setup.bash
 ```
 
@@ -139,5 +140,5 @@ Workspace'in `install/setup.bash` dosyası overlay'i ve `/opt/ros`'u zincirleme 
 | Gazebo: `Unable to resolve uri[model://...] ... does not contain a model.config` | Çalışma dizininde aynı adlı bir klasör var (Gazebo önce oraya bakar) | Model adı `teknofest_ika_parkur` olarak ayrıştırıldı; yeni modellerde de benzersiz ad kullanın |
 | Gazebo: `does not support mimic constraints` | Fizik motoru mimic desteklemiyor; tekerleri gz_ros2_control bağlıyor | Zararsız |
 | Kapanışta `process has died` / `RCLError ... context is not valid` | Ctrl+C sırasında rclpy kapanış yarışı | Zararsız |
-| Simülasyon gerçek zamandan yavaş | WSL'de GPU'suz yazılım render (`LIBGL_ALWAYS_SOFTWARE=1`) | Beklenen davranış; `headless:=true` biraz hızlandırır |
+| Simülasyon gerçek zamandan yavaş (RTF < 1) | Render işlemcide yapılıyor (`LIBGL_ALWAYS_SOFTWARE=1` set edilmiş ya da GPU seçilmemiş) | `~/.bashrc`'de `GALLIUM_DRIVER=d3d12` ve `MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA` olmalı, `LIBGL_ALWAYS_SOFTWARE` olmamalı; `nvidia-smi` WSL'de GPU'yu göstermeli. RTX 3050'de RTF 0.7-0.9'dan 1.0'a çıktı |
 | Gazebo arayüzü açılmıyor | WSLg yok ya da eski | Windows'ta `wsl --update` |
