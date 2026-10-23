@@ -16,13 +16,9 @@ diff_drive_controller:
     left_wheel_names: ["left_sprocket_joint"]
     right_wheel_names: ["right_sprocket_joint"]
 
-    # ugv_description/urdf/ugv.urdf.xacro ile aynı olmalı
-    wheel_separation: 0.22   # palet merkezleri arası
-    wheel_radius: 0.065
-    # Skid-steer kayma kompanzasyonu: dönerken paletler yanal kaydığı için efektif
-    # palet aralığı geometrikten büyüktür (gerçek robot: controllers_real.yaml)
-    # Simülasyonda ölçüldü (yerinde dönüş, gerçek yaw / odometri yaw ~ 1.0 olacak şekilde)
-    wheel_separation_multiplier: 1.51
+    # Araca bağlı değerler (wheel_separation, wheel_radius, wheel_separation_multiplier,
+    # hız/ivme sınırları) burada değil: ugv_description/config/vehicle.yaml'dan launch
+    # dosyalarında spawner'a verilir (ugv_description/launch/vehicle.py)
     left_wheel_radius_multiplier: 1.0
     right_wheel_radius_multiplier: 1.0
 
@@ -42,15 +38,6 @@ diff_drive_controller:
     cmd_vel_timeout: 0.5
 
     linear.x.has_velocity_limits: true
-    linear.x.max_velocity: 0.6
-    linear.x.min_velocity: -0.6
     linear.x.has_acceleration_limits: true
-    linear.x.max_acceleration: 1.0
-    linear.x.min_acceleration: -1.0
-
     angular.z.has_velocity_limits: true
-    angular.z.max_velocity: 2.0
-    angular.z.min_velocity: -2.0
     angular.z.has_acceleration_limits: true
-    angular.z.max_acceleration: 4.0
-    angular.z.min_acceleration: -4.0

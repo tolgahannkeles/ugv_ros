@@ -13,6 +13,7 @@ Kullanım:
   ros2 launch ugv_gazebo sim.launch.py world:=$(ros2 pkg prefix ugv_gazebo)/share/ugv_gazebo/worlds/test_arena.sdf x:=0 y:=0
 """
 import os
+import sys
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -24,6 +25,10 @@ from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
+
+# Araç tanımı (ugv_description/config/vehicle.yaml)
+sys.path.insert(0, os.path.join(get_package_share_directory('ugv_description'), 'launch'))
+import vehicle  # noqa: E402
 
 
 def generate_launch_description():
@@ -79,6 +84,10 @@ def generate_launch_description():
     # Dünyalardaki model:// URI'leri (ör. teknofest_ika_parkur) bu klasörden çözülür
     model_path = AppendEnvironmentVariable(
         'GZ_SIM_RESOURCE_PATH', os.path.join(pkg_gazebo, 'models'))
+    # URDF'teki package://ugv_description/meshes/... Gazebo'da model://ugv_description/...
+    # olarak aranır; paketin share dizininin üstü kaynak yolunda olmalı
+    robot_mesh_path = AppendEnvironmentVariable(
+        'GZ_SIM_RESOURCE_PATH', os.path.dirname(pkg_desc))
 
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')),
@@ -126,7 +135,7 @@ def generate_launch_description():
             'diff_drive_controller',
             '--controller-ros-args', '-r /diff_drive_controller/cmd_vel:=/cmd_vel',
             '--controller-ros-args', '-r /diff_drive_controller/odom:=/odom',
-        ],
+        ] + vehicle.spawner_args(vehicle.diff_drive_params()),
         output='screen'
     )
     spawn_controllers = [
@@ -198,7 +207,7 @@ def generate_launch_description():
 
     return LaunchDescription(
         args
-        + [gz_ip, model_path, rsp, gazebo, spawn_robot, bridge, gps_driver]
+        + [gz_ip, model_path, robot_mesh_path, rsp, gazebo, spawn_robot, bridge, gps_driver]
         + spawn_controllers
         + [localization, twist_mux, collision_guard]
         + web

@@ -28,21 +28,32 @@
 
   <xacro:macro name="ugv_gazebo" params="use_lidar">
 
-    <!-- ==================== SÜRTÜNME ==================== -->
-    <!-- Palet-zemin teması: yüksek sürtünme; dönüşte paletler yanal kayar (skid-steer) -->
+    <!-- ==================== PALETLER ==================== -->
+    <!-- Palet tekerlerle temsil edilir (ugv.urdf.xacro, track makrosu): zemine
+         dişli, avara ve yol tekerlerinin bant dış yarıçaplı çarpışmaları değer;
+         hepsi dişliyi bant hızında takip eder. Gazebo'nun TrackController'ı (yüzeyi
+         hareket eden palet) burada kullanılamadı: iki paletli araçta yalnızca bir
+         paletin komutu etkili oluyor, araç dönemiyor (Harmonic 8.15 + DART; Gazebo'nun
+         kendi tracked_vehicle_simple.sdf örneğinde de aynı).
+         Sürtünme yüksek; dönüşte paletler yanal kayar (skid-steer). -->
     <xacro:macro name="track_friction" params="link">
       <gazebo reference="${link}">
-        <mu1>${track_mu}</mu1>
-        <mu2>${track_mu}</mu2>
+        <mu1>1.0</mu1>
+        <mu2>1.0</mu2>
       </gazebo>
     </xacro:macro>
-    <xacro:property name="track_mu" value="1.0"/>
-    <xacro:track_friction link="left_sprocket"/>
-    <xacro:track_friction link="left_wheel_mid"/>
-    <xacro:track_friction link="left_wheel_front"/>
-    <xacro:track_friction link="right_sprocket"/>
-    <xacro:track_friction link="right_wheel_mid"/>
-    <xacro:track_friction link="right_wheel_front"/>
+    <xacro:macro name="side_friction" params="side">
+      <xacro:track_friction link="${side}_sprocket"/>
+      <xacro:track_friction link="${side}_idler"/>
+      <xacro:track_friction link="${side}_road_1"/>
+      <xacro:track_friction link="${side}_road_2"/>
+      <xacro:track_friction link="${side}_road_3"/>
+      <xacro:track_friction link="${side}_road_4"/>
+      <xacro:track_friction link="${side}_road_5"/>
+      <xacro:track_friction link="${side}_road_6"/>
+    </xacro:macro>
+    <xacro:side_friction side="left"/>
+    <xacro:side_friction side="right"/>
 
     <!-- ==================== ROS2_CONTROL ==================== -->
     <gazebo>

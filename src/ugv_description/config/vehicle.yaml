@@ -1,0 +1,56 @@
+# Araç tanımı: ölçüler, kütleler ve sürüş sınırları için TEK kaynak.
+# Okuyanlar:
+#   ugv_description/urdf/*.xacro       (xacro.load_yaml)
+#   ugv_gazebo/launch/sim.launch.py    (diff_drive_controller parametreleri)
+#   ugv_web/web_server.py              (/vehicle.json -> arayüz hız sınırı)
+#   tools/ugv_model.py                 (görsel mesh'ler; değişince yeniden üretin)
+#
+# HAVELSAN BARKAN 3 oranları (2.7 x 1.5 m, ~1 t; palet/gövde oranları fotoğraflardan),
+# TEKNOFEST parkuruna göre 1 m sınırına ölçekli (x0.36): 0.98 x 0.55 m, ~48 kg.
+# Uzunluklar metre, base_link'e göre (x ileri, z yukarı); "yerden" yazanlar zeminden.
+
+drive:
+  max_linear_velocity: 1.0         # m/s
+  max_angular_velocity: 2.0        # rad/s
+  max_linear_acceleration: 1.0     # m/s²
+  max_angular_acceleration: 4.0    # rad/s²
+  # Dönüşte dış palet ortalamadan hızlı gider: palet hızı sınırı = bu x max_linear_velocity
+  track_speed_margin: 1.2
+  # Skid-steer kayma kompanzasyonu: dönerken paletler yanal kaydığı için efektif palet
+  # aralığı geometrikten büyük. Simülasyonda ölçüldü (yerinde dönüş, gerçek yaw /
+  # odometri yaw ~ 1.0); uzun temas boyu (boy/palet aralığı ~1.2) yanal sürtünmeyi artırır.
+  wheel_separation_multiplier: 1.65
+
+track:
+  base_height: 0.15                # base_link yerden: dişli ve avara dingili
+  separation: 0.43                 # palet merkezleri arası
+  width: 0.12                      # palet bandı genişliği
+  belt_thickness: 0.015            # tekerler bandın iç yüzeyine değer
+  sprocket_x: -0.36                # arka tahrik dişlisi
+  sprocket_radius: 0.13            # dişli + palet; bant hızı = ω x bu
+  idler_x: 0.395                   # ön avara
+  idler_radius: 0.095              # avara + palet
+  road_radius: 0.048               # yol tekeri (bant içi)
+  road_xs: [-0.222, -0.117, -0.013, 0.092, 0.196, 0.301]
+  return_roller_x: 0.0             # üst bant taşıyıcı makarası (sadece görsel)
+
+hull:                              # yerden
+  x0: -0.40
+  x1: 0.42
+  bottom: 0.13                     # yerden yükseklik (paletler arası alt gövde altı)
+  upper_bottom: 0.26               # paletlerin üstüne taşan üst gövdenin altı
+  top: 0.34                        # güverte
+  lower_width: 0.29
+  upper_width: 0.50
+
+mass:
+  hull: 37.0                       # + 2 x (2.5 palet + 2.8 teker) = 47.6 kg
+  track: 2.5
+  sprocket: 1.0
+  idler: 0.6
+  road_wheel: 0.2
+  # Gövde kütle merkezi alçak ve hafif önde (batarya, motorlar altta/önde varsayıldı).
+  # Basamakta kenar paletin altına gelince araç kenarın üstünde döner; ağırlık merkezi
+  # kenarın önüne geçemezse geriye devrilir.
+  hull_cog_x: 0.05
+  hull_cog_height: 0.20            # yerden

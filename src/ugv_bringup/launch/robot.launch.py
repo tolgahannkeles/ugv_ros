@@ -14,6 +14,7 @@ Kullanım:
   ros2 launch ugv_bringup robot.launch.py use_mock_hardware:=true use_camera:=false  # PC'de test
 """
 import os
+import sys
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -22,6 +23,10 @@ from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
+# Araç tanımı (ugv_description/config/vehicle.yaml)
+sys.path.insert(0, os.path.join(get_package_share_directory('ugv_description'), 'launch'))
+import vehicle  # noqa: E402
 
 
 def generate_launch_description():
@@ -80,7 +85,8 @@ def generate_launch_description():
             'diff_drive_controller',
             '--controller-ros-args', '-r /diff_drive_controller/cmd_vel:=/cmd_vel',
             '--controller-ros-args', '-r /diff_drive_controller/odom:=/odom',
-        ],
+        # Kayma çarpanı gerçek robotta ölçülen (controllers_real.yaml)
+        ] + vehicle.spawner_args(vehicle.diff_drive_params(include_slip=False)),
         output='screen'
     )
     # Spawner'lar controller_manager hazır olana kadar kendileri bekler

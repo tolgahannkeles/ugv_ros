@@ -12,30 +12,59 @@
   <xacro:arg name="use_lidar" default="false"/>
 
   <!-- ==================== ÖLÇÜLER ==================== -->
-  <!-- Yürüyen aksam: her yanda 3 teker (ön, orta, arka dişli). Tahrik sadece arka
-       dişlide; palet ön ve orta tekerleri aynı hızda döndürür (mimic joint).
-       Ölçüler fotoğraftan tahmindir, gerçek ölçülerle güncellenmeli.
-       ugv_control/config/controllers.yaml ile aynı tutulmalı. -->
-  <xacro:property name="track_separation" value="0.22"/>   <!-- palet merkezleri arası -->
-  <xacro:property name="track_width" value="0.05"/>        <!-- palet bandı genişliği -->
-  <xacro:property name="wheel_radius" value="0.065"/>      <!-- teker + palet kalınlığı -->
-  <xacro:property name="wheel_pitch" value="0.135"/>       <!-- teker eksenleri arası -->
-  <xacro:property name="belt_thickness" value="0.008"/>
+  <!-- Değerler ugv_description/config/vehicle.yaml'dan (araç tanımı, tek kaynak).
+       Yürüyen aksam: büyük arka tahrik dişlisi ve ön avara (ikisi de yerden
+       yüksekte, dingilleri base_link hizasında), altta 6 çift yol tekeri. Tahrik
+       sadece arka dişlide; diğer tekerler palet üzerinden onu takip eder (mimic). -->
+  <xacro:property name="vehicle" value="${xacro.load_yaml('$(find ugv_description)/config/vehicle.yaml')}"/>
+  <xacro:property name="trk" value="${vehicle['track']}"/>
+  <xacro:property name="hl" value="${vehicle['hull']}"/>
+  <xacro:property name="ms" value="${vehicle['mass']}"/>
 
-  <xacro:property name="hull_length" value="${2 * wheel_pitch + 0.08}"/>
-  <xacro:property name="hull_width" value="${track_separation - track_width - 0.01}"/>
-  <xacro:property name="hull_bottom" value="0.025"/>        <!-- yerden yükseklik -->
-  <xacro:property name="hull_top" value="${2 * wheel_radius}"/>
+  <xacro:property name="base_height" value="${trk['base_height']}"/>
+  <xacro:property name="track_separation" value="${trk['separation']}"/>
+  <xacro:property name="track_width" value="${trk['width']}"/>
+  <xacro:property name="belt_thickness" value="${trk['belt_thickness']}"/>
+  <xacro:property name="wheel_radius" value="${trk['sprocket_radius']}"/>
+  <xacro:property name="sprocket_x" value="${trk['sprocket_x']}"/>
+  <xacro:property name="idler_x" value="${trk['idler_x']}"/>
+  <xacro:property name="idler_radius" value="${trk['idler_radius']}"/>
+  <xacro:property name="road_radius" value="${trk['road_radius']}"/>
+  <xacro:property name="road_xs" value="${trk['road_xs']}"/>
+  <xacro:property name="road_z" value="${-base_height + belt_thickness + road_radius}"/>
+
+  <xacro:property name="sprocket_mass" value="${ms['sprocket']}"/>
+  <xacro:property name="idler_mass" value="${ms['idler']}"/>
+  <xacro:property name="road_mass" value="${ms['road_wheel']}"/>
+  <xacro:property name="track_mass" value="${ms['track']}"/>
+  <xacro:property name="hull_mass" value="${ms['hull']}"/>
+  <xacro:property name="hull_cog_x" value="${ms['hull_cog_x']}"/>
+  <xacro:property name="hull_cog_height" value="${ms['hull_cog_height']}"/>
+
+  <!-- Gövde (yerden): paletler arası alt gövde ve paletlerin üstüne taşan üst gövde -->
+  <xacro:property name="hull_x0" value="${hl['x0']}"/>
+  <xacro:property name="hull_x1" value="${hl['x1']}"/>
+  <xacro:property name="hull_length" value="${hull_x1 - hull_x0}"/>
+  <xacro:property name="hull_cx" value="${(hull_x0 + hull_x1) / 2}"/>
+  <xacro:property name="hull_bottom" value="${hl['bottom']}"/>
+  <xacro:property name="upper_bottom" value="${hl['upper_bottom']}"/>
+  <xacro:property name="hull_top" value="${hl['top']}"/>
+  <xacro:property name="lower_width" value="${hl['lower_width']}"/>
+  <xacro:property name="upper_width" value="${hl['upper_width']}"/>
   <xacro:property name="hull_height" value="${hull_top - hull_bottom}"/>
-  <!-- base_link teker ekseni yüksekliğinde; gövde merkezi buna göre -->
-  <xacro:property name="hull_z" value="${(hull_top + hull_bottom) / 2 - wheel_radius}"/>
+  <!-- Gövde orta yüksekliği, base_link'e göre -->
+  <xacro:property name="hull_z" value="${(hull_top + hull_bottom) / 2 - base_height}"/>
 
-  <!-- Materyaller (fotoğraftaki beyaz gövde / palet, gri dişli) -->
-  <material name="white"><color rgba="0.92 0.92 0.90 1.0"/></material>
-  <material name="ivory"><color rgba="0.85 0.84 0.78 1.0"/></material>
-  <material name="grey"><color rgba="0.55 0.56 0.58 1.0"/></material>
+  <!-- Materyaller (haki gövde, kauçuk palet, koyu gri teker/sensör) -->
+  <material name="olive"><color rgba="0.33 0.38 0.24 1.0"/></material>
+  <material name="dark"><color rgba="0.12 0.12 0.13 1.0"/></material>
+  <material name="rubber"><color rgba="0.07 0.07 0.07 1.0"/></material>
+  <material name="steel"><color rgba="0.26 0.27 0.28 1.0"/></material>
   <material name="blue"><color rgba="0.1 0.3 0.8 1.0"/></material>
   <material name="black"><color rgba="0.05 0.05 0.05 1.0"/></material>
+
+  <!-- Görsel mesh'ler tools/ugv_model.py ile üretilir (CadQuery); çarpışmalar basit şekiller -->
+  <xacro:property name="mesh_dir" value="package://ugv_description/meshes"/>
 
   <!-- base_footprint (Zemine temas referansı, REP-105) -->
   <link name="base_footprint"/>
@@ -43,74 +72,100 @@
   <joint name="base_footprint_joint" type="fixed">
     <parent link="base_footprint"/>
     <child link="base_link"/>
-    <origin xyz="0 0 ${wheel_radius}" rpy="0 0 0"/>
+    <origin xyz="0 0 ${base_height}" rpy="0 0 0"/>
   </joint>
 
-  <!-- base_link: paletler arasındaki gövde -->
+  <!-- base_link: paletler arasındaki gövde. Görselde eğimli ön yüz, panelli üst gövde
+       ve arka sağda sensör direği (kamera kafası sadece görsel) -->
   <link name="base_link">
     <visual>
-      <origin xyz="0 0 ${hull_z}" rpy="0 0 0"/>
-      <geometry><box size="${hull_length} ${hull_width} ${hull_height}"/></geometry>
-      <material name="white"/>
+      <geometry><mesh filename="${mesh_dir}/hull.stl"/></geometry>
+      <material name="olive"/>
+    </visual>
+    <visual>
+      <geometry><mesh filename="${mesh_dir}/hull_dark.stl"/></geometry>
+      <material name="dark"/>
     </visual>
     <collision>
-      <origin xyz="0 0 ${hull_z}" rpy="0 0 0"/>
-      <geometry><box size="${hull_length} ${hull_width} ${hull_height}"/></geometry>
+      <origin xyz="${hull_cx} 0 ${(hull_bottom + upper_bottom) / 2 - base_height}" rpy="0 0 0"/>
+      <geometry><box size="${hull_length} ${lower_width} ${upper_bottom - hull_bottom}"/></geometry>
+    </collision>
+    <collision>
+      <origin xyz="${hull_cx} 0 ${(upper_bottom + hull_top) / 2 - base_height}" rpy="0 0 0"/>
+      <geometry><box size="${hull_length} ${upper_width} ${hull_top - upper_bottom}"/></geometry>
     </collision>
     <inertial>
-      <mass value="6.0"/>
-      <origin xyz="0 0 ${hull_z}" rpy="0 0 0"/>
+      <mass value="${hull_mass}"/>
+      <origin xyz="${hull_cog_x} 0 ${hull_cog_height - base_height}" rpy="0 0 0"/>
       <!-- Kutu: m/12 * (b² + c²) -->
-      <inertia ixx="${6.0 / 12 * (hull_width**2 + hull_height**2)}" ixy="0" ixz="0"
-               iyy="${6.0 / 12 * (hull_length**2 + hull_height**2)}" iyz="0"
-               izz="${6.0 / 12 * (hull_length**2 + hull_width**2)}"/>
+      <inertia ixx="${hull_mass / 12 * (lower_width**2 + hull_height**2)}" ixy="0" ixz="0"
+               iyy="${hull_mass / 12 * (hull_length**2 + hull_height**2)}" iyz="0"
+               izz="${hull_mass / 12 * (hull_length**2 + lower_width**2)}"/>
     </inertial>
   </link>
 
   <!-- ==================== PALETLER ==================== -->
-  <!-- Teker: name, x konumu, renk. mimic="" ise tahrikli (arka dişli), değilse
-       palet üzerinden dişliyi takip eder. -->
-  <xacro:macro name="track_wheel" params="side y name x material mimic">
+  <!-- Teker: name, x/z konumu, mesh. mimic="" ise tahrikli (arka dişli), değilse
+       palet üzerinden dişliyi takip eder.
+       Palet tekerlerle temsil edilir: her tekerin çarpışması bandın dış yarıçapında
+       (coll_radius = teker + bant), yani zemine değen yüzey bant. Bütün tekerler bant
+       hızında döner: oran = dişli dış yarıçapı / coll_radius (küçük teker hızlı döner).
+       Yol tekerleri birbirine değecek sıklıkta: alt bant kesintisiz yüzey gibi. -->
+  <xacro:macro name="track_wheel" params="side y name x z mesh mimic radius coll_radius mass">
     <link name="${side}_${name}">
       <visual>
-        <geometry><cylinder radius="${wheel_radius}" length="${track_width}"/></geometry>
-        <material name="${material}"/>
+        <geometry><mesh filename="${mesh_dir}/${mesh}.stl"/></geometry>
+        <material name="steel"/>
       </visual>
       <collision>
-        <geometry><cylinder radius="${wheel_radius}" length="${track_width}"/></geometry>
+        <geometry><cylinder radius="${coll_radius}" length="${track_width}"/></geometry>
       </collision>
       <inertial>
-        <mass value="0.4"/>
+        <mass value="${mass}"/>
         <!-- Silindir: eksen (z) 1/2 m r², diğerleri 1/12 m (3r² + h²) -->
-        <inertia ixx="${0.4 / 12 * (3 * wheel_radius**2 + track_width**2)}" ixy="0" ixz="0"
-                 iyy="${0.4 / 12 * (3 * wheel_radius**2 + track_width**2)}" iyz="0"
-                 izz="${0.4 / 2 * wheel_radius**2}"/>
+        <inertia ixx="${mass / 12 * (3 * radius**2 + track_width**2)}" ixy="0" ixz="0"
+                 iyy="${mass / 12 * (3 * radius**2 + track_width**2)}" iyz="0"
+                 izz="${mass / 2 * radius**2}"/>
       </inertial>
     </link>
 
     <joint name="${side}_${name}_joint" type="continuous">
       <parent link="base_link"/>
       <child link="${side}_${name}"/>
-      <origin xyz="${x} ${y} 0" rpy="-1.5708 0 0"/>
+      <origin xyz="${x} ${y} ${z}" rpy="-1.5708 0 0"/>
       <axis xyz="0 0 1"/>
       <xacro:unless value="${mimic == ''}">
-        <mimic joint="${side}_${mimic}_joint" multiplier="1.0" offset="0.0"/>
+        <!-- Dış yüzeyi (bant) dişliyle aynı çizgisel hızda -->
+        <mimic joint="${side}_sprocket_joint"
+               multiplier="${wheel_radius / coll_radius}" offset="0.0"/>
       </xacro:unless>
     </joint>
   </xacro:macro>
 
-  <!-- Palet bandı görseli: tekerlerin üstünden ve altından geçen düz bölümler -->
+  <xacro:macro name="road_wheels" params="side y xs index">
+    <xacro:if value="${xs}">
+      <xacro:track_wheel side="${side}" y="${y}" name="road_${index}" x="${xs[0]}" z="${road_z}"
+                         mesh="road_wheel" mimic="sprocket" radius="${road_radius}"
+                         coll_radius="${road_radius + belt_thickness}" mass="${road_mass}"/>
+      <xacro:road_wheels side="${side}" y="${y}" xs="${xs[1:]}" index="${index + 1}"/>
+    </xacro:if>
+  </xacro:macro>
+
+  <!-- Palet bandı: sadece görsel (pabuçlu bant, taşıyıcı makara); zemine tekerlerin
+       bant yarıçaplı çarpışmaları değer (track_wheel). Sabit eklemle gövdeye bağlı,
+       Gazebo'da gövdeyle birleşir. -->
   <xacro:macro name="track" params="side y">
     <link name="${side}_track">
+      <inertial>
+        <mass value="${track_mass}"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <inertia ixx="${track_mass / 12 * (track_width**2 + (2 * wheel_radius)**2)}" ixy="0" ixz="0"
+                 iyy="${track_mass / 12 * ((idler_x - sprocket_x)**2 + (2 * wheel_radius)**2)}" iyz="0"
+                 izz="${track_mass / 12 * ((idler_x - sprocket_x)**2 + track_width**2)}"/>
+      </inertial>
       <visual>
-        <origin xyz="0 0 ${wheel_radius - belt_thickness / 2}" rpy="0 0 0"/>
-        <geometry><box size="${2 * wheel_pitch} ${track_width + 0.004} ${belt_thickness}"/></geometry>
-        <material name="ivory"/>
-      </visual>
-      <visual>
-        <origin xyz="0 0 ${-wheel_radius + belt_thickness / 2}" rpy="0 0 0"/>
-        <geometry><box size="${2 * wheel_pitch} ${track_width + 0.004} ${belt_thickness}"/></geometry>
-        <material name="ivory"/>
+        <geometry><mesh filename="${mesh_dir}/track_belt.stl"/></geometry>
+        <material name="rubber"/>
       </visual>
     </link>
     <joint name="${side}_track_joint" type="fixed">
@@ -120,10 +175,15 @@
     </joint>
 
     <!-- Arka dişli: tahrikli (ESP32 motoru) -->
-    <xacro:track_wheel side="${side}" y="${y}" name="sprocket" x="${-wheel_pitch}" material="grey" mimic=""/>
-    <!-- Orta ve ön teker: tahriksiz, palet üzerinden dişliyle aynı hızda döner -->
-    <xacro:track_wheel side="${side}" y="${y}" name="wheel_mid" x="0" material="ivory" mimic="sprocket"/>
-    <xacro:track_wheel side="${side}" y="${y}" name="wheel_front" x="${wheel_pitch}" material="ivory" mimic="sprocket"/>
+    <xacro:track_wheel side="${side}" y="${y}" name="sprocket" x="${sprocket_x}" z="0"
+                       mesh="sprocket" mimic="" radius="${wheel_radius}" coll_radius="${wheel_radius}"
+                       mass="${sprocket_mass}"/>
+    <!-- Ön avara ve yol tekerleri: palet üzerinden dişliyi takip eder (Gazebo'da hepsi
+         sürülür; gerçek palette bandın çektiği tekerler) -->
+    <xacro:track_wheel side="${side}" y="${y}" name="idler" x="${idler_x}" z="0"
+                       mesh="idler" mimic="sprocket" radius="${idler_radius}" coll_radius="${idler_radius}"
+                       mass="${idler_mass}"/>
+    <xacro:road_wheels side="${side}" y="${y}" xs="${road_xs}" index="1"/>
   </xacro:macro>
 
   <xacro:track side="left" y="${track_separation / 2}"/>
@@ -138,15 +198,15 @@
     <origin xyz="0 0 ${hull_z}" rpy="0 0 0"/>
   </joint>
 
-  <!-- GPS Link (üst kapakta, arkada) -->
+  <!-- GPS Link (güvertede, ortada) -->
   <link name="gps_link"/>
   <joint name="gps_joint" type="fixed">
     <parent link="base_link"/>
     <child link="gps_link"/>
-    <origin xyz="-0.10 0 ${hull_top - wheel_radius + 0.01}" rpy="0 0 0"/>
+    <origin xyz="-0.10 0 ${hull_top - base_height + 0.01}" rpy="0 0 0"/>
   </joint>
 
-  <!-- LiDAR Link (opsiyonel, üst kapakta) -->
+  <!-- LiDAR Link (opsiyonel, güvertenin önünde) -->
   <xacro:if value="$(arg use_lidar)">
     <link name="lidar_link">
       <visual>
@@ -160,11 +220,11 @@
     <joint name="lidar_joint" type="fixed">
       <parent link="base_link"/>
       <child link="lidar_link"/>
-      <origin xyz="0.10 0 ${hull_top - wheel_radius + 0.02}" rpy="0 0 0"/>
+      <origin xyz="0.25 0 ${hull_top - base_height + 0.03}" rpy="0 0 0"/>
     </joint>
   </xacro:if>
 
-  <!-- Kamera Link (gövdenin ön yüzünde) -->
+  <!-- Kamera Link (ön panelde, iki sensör penceresi arasında) -->
   <link name="camera_link">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -183,7 +243,7 @@
   <joint name="camera_joint" type="fixed">
     <parent link="base_link"/>
     <child link="camera_link"/>
-    <origin xyz="${hull_length / 2 + 0.005} 0 ${hull_z}" rpy="0 0 0"/>
+    <origin xyz="${hull_x1 + 0.01} 0 ${0.285 - base_height}" rpy="0 0 0"/>
   </joint>
 
   <!-- Optik Eksen Linki (ROS kamera standartı: Z ileri, X sağ, Y aşağı) -->

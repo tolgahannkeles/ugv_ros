@@ -7,8 +7,11 @@
        aksi halde               -> ugv_hardware/ESP32System      (gerçek robot, UART) -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <!-- Palet hızı sınırı 0.6 m/s -> teker hızı sınırı (rad/s) -->
-  <xacro:property name="wheel_max_vel" value="${0.6 / wheel_radius}"/>
+  <!-- Palet hızı sınırı -> teker hızı sınırı (rad/s); config/vehicle.yaml drive bölümü
+       (dönüşte dış palet ortalamadan hızlı gider, track_speed_margin kadar pay) -->
+  <xacro:property name="drive" value="${vehicle['drive']}"/>
+  <xacro:property name="wheel_max_vel"
+                  value="${drive['max_linear_velocity'] * drive['track_speed_margin'] / wheel_radius}"/>
 
   <xacro:macro name="wheel_interfaces" params="joint">
     <joint name="${joint}">
@@ -55,13 +58,20 @@
       <!-- Tahrik: her yanda arka dişli (gerçek robotta palet başına bir motor) -->
       <xacro:wheel_interfaces joint="left_sprocket_joint"/>
       <xacro:wheel_interfaces joint="right_sprocket_joint"/>
-      <!-- Gazebo'da ön/orta tekerleri gz_ros2_control dişliye bağlar (palet etkisi).
+      <!-- Gazebo'da tahriksiz tekerleri gz_ros2_control dişliye bağlar (görselde dönsünler).
            Gerçek robotta/mock'ta gerekmez: RSP mimic açılarını URDF'ten hesaplar. -->
       <xacro:if value="${sim_mode}">
-        <xacro:mimic_wheel_interfaces joint="left_wheel_mid_joint"/>
-        <xacro:mimic_wheel_interfaces joint="left_wheel_front_joint"/>
-        <xacro:mimic_wheel_interfaces joint="right_wheel_mid_joint"/>
-        <xacro:mimic_wheel_interfaces joint="right_wheel_front_joint"/>
+        <xacro:macro name="side_mimics" params="side">
+          <xacro:mimic_wheel_interfaces joint="${side}_idler_joint"/>
+          <xacro:mimic_wheel_interfaces joint="${side}_road_1_joint"/>
+          <xacro:mimic_wheel_interfaces joint="${side}_road_2_joint"/>
+          <xacro:mimic_wheel_interfaces joint="${side}_road_3_joint"/>
+          <xacro:mimic_wheel_interfaces joint="${side}_road_4_joint"/>
+          <xacro:mimic_wheel_interfaces joint="${side}_road_5_joint"/>
+          <xacro:mimic_wheel_interfaces joint="${side}_road_6_joint"/>
+        </xacro:macro>
+        <xacro:side_mimics side="left"/>
+        <xacro:side_mimics side="right"/>
       </xacro:if>
     </ros2_control>
   </xacro:macro>
