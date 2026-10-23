@@ -17,7 +17,8 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (AppendEnvironmentVariable, DeclareLaunchArgument,
-                            IncludeLaunchDescription, RegisterEventHandler)
+                            IncludeLaunchDescription, RegisterEventHandler,
+                            SetEnvironmentVariable)
 from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -54,6 +55,9 @@ def generate_launch_description():
             'localization', default_value='true', description='Cift EKF + navsat_transform'),
         DeclareLaunchArgument('rviz', default_value='false', description='RViz2 ac'),
     ]
+
+    # gz-transport yerel kalsın; ağ yokken "Couldn't find a preferred IP" uyarısı çıkmaz
+    gz_ip = SetEnvironmentVariable('GZ_IP', '127.0.0.1')
 
     # ==================== ROBOT MODELİ ====================
     rsp = IncludeLaunchDescription(
@@ -194,7 +198,7 @@ def generate_launch_description():
 
     return LaunchDescription(
         args
-        + [model_path, rsp, gazebo, spawn_robot, bridge, gps_driver]
+        + [gz_ip, model_path, rsp, gazebo, spawn_robot, bridge, gps_driver]
         + spawn_controllers
         + [localization, twist_mux, collision_guard]
         + web
