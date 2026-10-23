@@ -16,6 +16,16 @@ class ThreadingHTTPServer(socketserver.ThreadingTCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
+
+class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
+    # Tarayıcı her açılışta dosyanın değişip değişmediğini sorsun: yoksa güncellenen
+    # JS modülleri (ör. config.js) eski haliyle önbellekten yükleniyordu. Değişmediyse
+    # sunucu 304 döner, dosya yeniden indirilmez.
+    def end_headers(self):
+        self.send_header('Cache-Control', 'no-cache')
+        super().end_headers()
+
+
 class WebServerNode(Node):
     def __init__(self):
         super().__init__('web_server_node')
@@ -26,7 +36,7 @@ class WebServerNode(Node):
         pkg_share = get_package_share_directory('ugv_web')
         www_dir = os.path.join(pkg_share, 'www')
 
-        handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=www_dir)
+        handler = functools.partial(NoCacheHandler, directory=www_dir)
 
         self.get_logger().info(f"Web Arayuzu baslatiliyor: http://0.0.0.0:{port} (Dizin: {www_dir})")
 
